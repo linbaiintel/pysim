@@ -1,46 +1,9 @@
 # write a 5 stage pipeline module for risc-v architecture with time-stepped simulation using SimPy
 import simpy
-import re
-
-class Instruction:
-    """Represents a parsed instruction with register dependencies"""
-    def __init__(self, text):
-        self.text = text
-        self.is_bubble = (text == "BUBBLE")
-        self.dest_reg = None
-        self.src_regs = []
-        
-        if not self.is_bubble:
-            self.parse()
-    
-    def parse(self):
-        """Parse instruction to extract destination and source registers"""
-        # Handle different instruction formats
-        # Format: OP dest, src1, src2 (e.g., ADD R1, R2, R3)
-        # Format: LOAD/STORE dest, offset(base) (e.g., LOAD R1, 100(R2))
-        
-        if "LOAD" in self.text:
-            match = re.search(r'LOAD\s+(\w+),\s*\d+\((\w+)\)', self.text)
-            if match:
-                self.dest_reg = match.group(1)  # destination register
-                self.src_regs = [match.group(2)]  # base register
-        elif "STORE" in self.text:
-            match = re.search(r'STORE\s+(\w+),\s*\d+\((\w+)\)', self.text)
-            if match:
-                self.dest_reg = None  # STORE doesn't write to register
-                self.src_regs = [match.group(1), match.group(2)]  # value and base register
-        else:
-            # Standard R-type: OP dest, src1, src2
-            match = re.search(r'(\w+)\s+(\w+),\s*(\w+),\s*(\w+)', self.text)
-            if match:
-                self.dest_reg = match.group(2)
-                self.src_regs = [match.group(3), match.group(4)]
-    
-    def __str__(self):
-        return self.text
-    
-    def __repr__(self):
-        return f"Instruction({self.text})"
+from register_file import RegisterFile
+from memory import Memory
+from alu import ALU
+from instruction import Instruction
 
 
 class PipelineStage:
@@ -74,42 +37,88 @@ class FetchStage(PipelineStage):
 
 
 class DecodeStage(PipelineStage):
-    def __init__(self, env):
+    def __init__(self, env, register_file):
         super().__init__(env, "Decode", latency=1)
+        self.register_file = register_file
     
     def process(self, instruction):
-        """Simulate decoding instruction"""
+        """Simulate decoding instruction and reading registers"""
         yield from super().process(instruction)
+        
+        # Read source register values
+        if not instruction.is_bubble:
+            instruction.src_values = [self.register_file.read(reg) for reg in instruction.src_regs]
+            if instruction.src_values:
+                print(f"  -> Read registers: {dict(zip(instruction.src_regs, instruction.src_values))}")
+        
         return instruction
 
 
 class ExecuteStage(PipelineStage):
-    def __init__(self, env):
+    def __init__(self, env, alu):
         super().__init__(env, "Execute", latency=1)
+        self.alu = alu
     
     def process(self, instruction):
         """Simulate executing instruction"""
         yield from super().process(instruction)
+        
+        # Perform ALU operation or calculate memory address
+        if not instruction.is_bubble:
+            if instruction.operation == 'LOAD' or instruction.operation == 'STORE':
+                # Calculate memory address: base + offset
+                base_value = instruction.src_values[0] if instruction.src_values else 0
+                instruction.mem_address = base_value + instruction.offset
+                print(f"  -> Calculated address: {instruction.mem_address}")
+            elif instruction.operation:
+                # Execute ALU operation
+                if len(instruction.src_values) >= 2:
+                    instruction.result = self.alu.execute(
+                        instruction.operation,
+                        instruction.src_values[0],
+                        instruction.src_values[1]
+                    )
+                    print(f"  -> ALU result: {instruction.result}")
+        
         return instruction
 
 
 class MemoryStage(PipelineStage):
-    def __init__(self, env):
+    def __init__(self, env, memory):
         super().__init__(env, "Memory", latency=1)
+        self.memory = memory
     
     def process(self, instruction):
         """Simulate memory access"""
         yield from super().process(instruction)
+        
+        # Perform memory operation
+        if not instruction.is_bubble:
+            if instruction.operation == 'LOAD':
+                instruction.result = self.memory.read(instruction.mem_address)
+                print(f"  -> Loaded value {instruction.result} from address {instruction.mem_address}")
+            elif instruction.operation == 'STORE':
+                store_value = instruction.src_values[0] if instruction.src_values else 0
+                self.memory.write(instruction.mem_address, store_value)
+                print(f"  -> Stored value {store_value} to address {instruction.mem_address}")
+        
         return instruction
 
 
 class WriteBackStage(PipelineStage):
-    def __init__(self, env):
+    def __init__(self, env, register_file):
         super().__init__(env, "WriteBack", latency=1)
+        self.register_file = register_file
     
     def process(self, instruction):
         """Simulate writing back to register"""
         yield from super().process(instruction)
+        
+        # Write result to register file
+        if not instruction.is_bubble and instruction.dest_reg and instruction.result is not None:
+            self.register_file.write(instruction.dest_reg, instruction.result)
+            print(f"  -> Wrote {instruction.result} to {instruction.dest_reg}")
+        
         return instruction
 
 
@@ -117,11 +126,18 @@ class Pipeline:
     def __init__(self, env, enable_forwarding=False):
         self.env = env
         self.enable_forwarding = enable_forwarding
+        
+        # Create hardware components
+        self.register_file = RegisterFile()
+        self.memory = Memory()
+        self.alu = ALU()
+        
+        # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
-        self.decode = DecodeStage(env)
-        self.execute = ExecuteStage(env)
-        self.memory = MemoryStage(env)
-        self.write_back = WriteBackStage(env)
+        self.decode = DecodeStage(env, self.register_file)
+        self.execute = ExecuteStage(env, self.alu)
+        self.memory_stage = MemoryStage(env, self.memory)
+        self.write_back = WriteBackStage(env, self.register_file)
         
         # Create buffers between stages
         self.fetch_to_decode = simpy.Store(env)
@@ -235,7 +251,7 @@ class Pipeline:
         self.env.process(self.stage_runner(self.fetch, self.fetch_to_decode, self.decode_to_execute))
         self.env.process(self.stage_runner(self.decode, self.decode_to_execute, self.execute_to_memory, 'decode'))
         self.env.process(self.stage_runner(self.execute, self.execute_to_memory, self.memory_to_writeback, 'execute'))
-        self.env.process(self.stage_runner(self.memory, self.memory_to_writeback, self.writeback_output, 'memory'))
+        self.env.process(self.stage_runner(self.memory_stage, self.memory_to_writeback, self.writeback_output, 'memory'))
         self.env.process(self.stage_runner(self.write_back, self.writeback_output, None, 'writeback'))
         
         # Feed instructions
@@ -257,6 +273,13 @@ if __name__ == "__main__":
     print("-" * 60)
     env = simpy.Environment()
     pipeline = Pipeline(env)
+    
+    # Initialize registers for test
+    pipeline.register_file.write('R2', 10)
+    pipeline.register_file.write('R3', 20)
+    pipeline.register_file.write('R5', 5)
+    pipeline.register_file.write('R7', 7)
+    pipeline.register_file.write('R9', 9)
     
     instructions = [
         "ADD R1, R2, R3",      # R1 = R2 + R3
@@ -280,6 +303,15 @@ if __name__ == "__main__":
     env2 = simpy.Environment()
     pipeline2 = Pipeline(env2)
     
+    # Initialize registers and memory for test
+    pipeline2.register_file.write('R2', 10)
+    pipeline2.register_file.write('R3', 20)
+    pipeline2.register_file.write('R4', 15)
+    pipeline2.register_file.write('R5', 5)
+    pipeline2.register_file.write('R7', 100)
+    pipeline2.memory.write(100, 42)
+    pipeline2.memory.write(200, 99)
+    
     instructions2 = [
         "ADD R1, R2, R3",      # R1 = R2 + R3
         "SUB R1, R4, R5",      # WAW: both write to R1
@@ -301,6 +333,16 @@ if __name__ == "__main__":
     print("-" * 60)
     env3 = simpy.Environment()
     pipeline3 = Pipeline(env3)
+    
+    # Initialize registers for test
+    pipeline3.register_file.write('R2', 10)
+    pipeline3.register_file.write('R3', 20)
+    pipeline3.register_file.write('R5', 5)
+    pipeline3.register_file.write('R6', 3)
+    pipeline3.register_file.write('R8', 15)
+    pipeline3.register_file.write('R9', 7)
+    pipeline3.register_file.write('R11', 8)
+    pipeline3.register_file.write('R12', 4)
     
     instructions3 = [
         "ADD R1, R2, R3",      # No dependencies
