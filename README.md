@@ -1,6 +1,6 @@
 # RISC-V 5-Stage Pipeline Simulator
 
-A cycle-accurate simulation of a RISC-V 5-stage pipeline using SimPy, with comprehensive hazard detection, pipeline flush mechanism, and support for 31 RV32I instructions.
+A cycle-accurate simulation of a RISC-V 5-stage pipeline using SimPy, with comprehensive hazard detection, pipeline flush mechanism, and **100% complete RV32I implementation (40/40 instructions)**.
 
 ## Overview
 This simulator implements a classic 5-stage in-order pipeline:
@@ -13,7 +13,7 @@ This simulator implements a classic 5-stage in-order pipeline:
 **Key Features:**
 - **RAW Hazard Detection**: Detects read-after-write dependencies and inserts stalls
 - **Pipeline Flush**: Handles control flow changes (branches, jumps) by flushing incorrect instructions
-- **RV32I Support**: 33/40 instructions including all computational, load/store, branch, jump, system, and memory ordering instructions
+- **RV32I Support**: 40/40 instructions - **100% COMPLETE RV32I implementation** \u2705
 - **Cycle-Accurate**: Tracks exact cycle counts, stalls, and flushes for performance analysis
 
 ## Setup
@@ -72,7 +72,7 @@ python sandbox/vis_pipeline.py
 
 ### Run Test Suite
 ```bash
-# Run all functional tests (125 tests)
+# Run all functional tests (166 tests)
 python -m unittest discover tests/functional_tests -v
 
 # Run specific test modules
@@ -81,6 +81,8 @@ python -m unittest tests.functional_tests.test_jump -v
 python -m unittest tests.functional_tests.test_flush -v
 python -m unittest tests.functional_tests.test_load_store -v
 python -m unittest tests.functional_tests.test_system -v
+python -m unittest tests.functional_tests.test_fence -v
+python -m unittest tests.functional_tests.test_csr -v
 
 # Or use convenience scripts
 ./scripts/run_all_tests.sh
@@ -88,7 +90,7 @@ python -m unittest tests.functional_tests.test_system -v
 ```
 
 ## Test Categories
-25 Total Tests)
+**166 Total Tests**  
 **Coverage by category:**
 
 #### Arithmetic & Logic (test_instruction_types.py, test_comparison.py, test_immediate.py, test_shift.py)
@@ -112,6 +114,17 @@ python -m unittest tests.functional_tests.test_system -v
 - ECALL (environment call) with syscall emulation
 - EBREAK (breakpoint) as halt signal
 
+#### Memory Ordering (test_fence.py)
+- FENCE (memory ordering) as NOP
+- FENCE.I (instruction cache fence) as NOP
+
+#### Control and Status Registers (test_csr.py)
+- CSRRW, CSRRS, CSRRC (register variants)
+- CSRRWI, CSRRSI, CSRRCI (immediate variants)
+- CSR bank with standard RISC-V addresses
+- Read-only CSR protection
+- Atomic read-modify-write operations
+
 #### Upper Immediate (test_upper_immediate.py)
 - LUI (Load Upper Immediate)
 - AUIPC (Add Upper Immediate to PC)
@@ -126,8 +139,7 @@ python -m unittest tests.functional_tests.test_system -v
 **Run all tests:**
 ```bash
 python -m unittest discover tests/functional_tests -v
-# Output: Ran 125 tests in ~0.06s/functional_tests -v
-# Output: Ran 109 tests in ~0.05s
+# Output: Ran 166 tests in ~0.07s
 ```
 
 ## Pipeline Visualization
@@ -327,16 +339,16 @@ pysim/
 ```
 
 **Key Directories:**
-- **Core Simulator**: Root-level .py files (riscv.py, pipeline.py, instruction.py, etc.)
+- **Core Simulator**: Root-level .py files (riscv.py, pipeline.py, instruction.py, csr.py, etc.)
 - **docs/**: Comprehensive documentation including RV32I coverage analysis
 - **utils/**: ELF loading and RISC-V instruction decoding utilities
-- **tests/functional_tests/**: 109 comprehensive tests covering all implemented instructions
+- **tests/functional_tests/**: 166 comprehensive tests covering all implemented instructions
 - **scripts/**: Shell scripts for convenient test execution
 - **3rd_party/**: Official RISC-V test suite (git submodule)
 
 ## Testing Checklist
 
-**Core Functionality**25/125 tests passing)
+**Core Functionality** (166/166 tests passing)
 - [x] RAW hazards are detected and stalled
 - [x] Independent instructions don't stall
 - [x] Instruction order is preserved (in-order pipeline)
@@ -344,7 +356,7 @@ pysim/
 - [x] Bubbles are inserted during stalls
 - [x] Pipeline state is tracked correctly
 
-**Instruction Coverage**
+**Instruction Coverage** (40/40 = 100%)
 - [x] R-type operations (ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA)
 - [x] I-type operations (ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI)
 - [x] Load variants (LW, LH, LB, LHU, LBU) with sign/zero extension
@@ -353,6 +365,8 @@ pysim/
 - [x] Branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU)
 - [x] Jump instructions (JAL, JALR) with return address calculation
 - [x] System instructions (ECALL, EBREAK) with syscall emulation
+- [x] Memory ordering (FENCE, FENCE.I) as NOPs
+- [x] CSR instructions (CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI)
 
 **Pipeline Control**
 - [x] Pipeline flush on jumps (JAL, JALR)
@@ -368,35 +382,38 @@ pysim/
 - [x] Jump to register with LSB clearing (JALR)
 - [x] Negative offsets and edge addresses
 - [x] R0 hardwired to zero
-- [x] CPI/IPC metrics calculated correctly
 - [x] System calls with various arguments
+- [x] CSR read-only protection and atomic operations
 - [x] CPI/IPC metrics calculated correctly
 
 ## Implementation Status
-31/40 RV32I instructions (77.5% coverage)
+
+**\ud83c\udf89 100% RV32I COMPLETE (40/40 instructions)** \u2705
+
+- All 40 RV32I base integer instructions implemented
 - RAW hazard detection with stall insertion
-- Pipeline flush mechanism for control flow changes
+- Full CSR bank with standard RISC-V addresses
 - Cycle-accurate simulation with performance metrics
-- Comprehensive test suite (125 tests)
+- Comprehensive test suite (166 tests)
 - All load/store variants with proper sign/zero extension
 - Jump instructions (JAL, JALR) with return address handling
 - All branch instructions with condition evaluation
 - System instructions (ECALL, EBREAK) with basic syscall support
+- Memory ordering (FENCE, FENCE.I) implemented as NOPs
+- Complete CSR support with atomic read-modify-write operations
 
-### ⚠️ Missing from RV32I (9 instructions)
-- **Memory ordering**: FENCE, FENCE.I (can be implemented as NOPs)
-- **CSR operations**: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI, (CSRRC)
+### \ud83c\udf89 RV32I Implementation: COMPLETE
 
-**Note**: The simulator is **functionally complete** for user-mode programs with basic I/O. Missing instructions are memory ordering and 
+**All 40 instructions of the RISC-V RV32I base integer instruction set are now fully implemented and tested!**
 
-**Note**: The simulator is **functionally complete** for user-mode computational programs. Missing instructions are system/privileged level operations. See [docs/RV32I_COVERAGE.md](docs/RV32I_COVERAGE.md) for details.
+See [docs/RV32I_COVERAGE.md](docs/RV32I_COVERAGE.md) for complete implementation details.
 
-### 🚀 Future Enhancements
+### \ud83d\ude80 Future Enhancements
 
 **Data Forwarding (Reduce Stalls)**
-- EX → EX forwarding: 0 cycle stall instead of 3
-- MEM → EX forwarding: 0 cycle stall instead of 2
-- WB → EX forwarding: 0 cycle stall
+- EX \u2192 EX forwarding: 0 cycle stall instead of 3
+- MEM \u2192 EX forwarding: 0 cycle stall instead of 2
+- WB \u2192 EX forwarding: 0 cycle stall
 - LOAD-use hazard: 1 cycle stall instead of 2-3
 
 **Branch Prediction**

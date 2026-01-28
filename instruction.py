@@ -20,6 +20,7 @@ class Instruction:
         self.mem_address = None
         self.jump_target = None  # For JAL/JALR jump target address
         self.is_jump = False  # Flag for jump instructions
+        self.csr_addr = None  # For CSR instructions (12-bit immediate)
         
         if not self.is_bubble:
             self.parse()
@@ -74,6 +75,27 @@ class Instruction:
             self.operation = text_upper
             self.dest_reg = None  # FENCE instructions don't write to register
             self.src_regs = []
+        
+        # CSR instructions (CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI)
+        elif text_upper.startswith('CSR'):
+            # CSR format: CSRXX rd, csr, rs1/uimm
+            # Examples: CSRRW R1, 0x300, R2  or  CSRRWI R1, 0x300, 5
+            match = re.search(r'(\w+)\s+(\w+),\s*(-?(?:0x)?[0-9a-fA-F]+),\s*(\w+)', self.text, re.IGNORECASE)
+            if match:
+                self.operation = match.group(1).upper()
+                self.dest_reg = match.group(2)
+                self.csr_addr = self._parse_immediate(match.group(3))
+                
+                # Check if last operand is register or immediate
+                last_operand = match.group(4)
+                if self.operation.endswith('I'):
+                    # Immediate variants (CSRRWI, CSRRSI, CSRRCI)
+                    self.immediate = self._parse_immediate(last_operand) & 0x1F  # 5-bit unsigned
+                    self.has_immediate = True
+                    self.src_regs = []
+                else:
+                    # Register variants (CSRRW, CSRRS, CSRRC)
+                    self.src_regs = [last_operand]
             
         # Branch instructions
         elif text_upper.startswith('B'):

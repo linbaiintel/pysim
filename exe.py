@@ -203,6 +203,54 @@ class EXE:
         return {'action': 'break'}
     
     @staticmethod
+    def execute_csr_read_write(csr_bank, csr_addr, value):
+        """Execute CSRRW - Atomic Read/Write CSR
+        
+        Args:
+            csr_bank: CSRBank instance
+            csr_addr: CSR address
+            value: Value to write
+            
+        Returns:
+            Old value of CSR
+        """
+        return csr_bank.write(csr_addr, value)
+    
+    @staticmethod
+    def execute_csr_read_set(csr_bank, csr_addr, mask):
+        """Execute CSRRS - Atomic Read and Set Bits in CSR
+        
+        Args:
+            csr_bank: CSRBank instance
+            csr_addr: CSR address
+            mask: Bits to set (if mask is 0, just read)
+            
+        Returns:
+            Old value of CSR
+        """
+        if mask == 0:
+            # Just read, don't modify
+            return csr_bank.read(csr_addr)
+        return csr_bank.set_bits(csr_addr, mask)
+    
+    @staticmethod
+    def execute_csr_read_clear(csr_bank, csr_addr, mask):
+        """Execute CSRRC - Atomic Read and Clear Bits in CSR
+        
+        Args:
+            csr_bank: CSRBank instance
+            csr_addr: CSR address
+            mask: Bits to clear (if mask is 0, just read)
+            
+        Returns:
+            Old value of CSR
+        """
+        if mask == 0:
+            # Just read, don't modify
+            return csr_bank.read(csr_addr)
+        return csr_bank.clear_bits(csr_addr, mask)
+    
+    @staticmethod
     def evaluate_branch(operation, val1, val2):
         """Evaluate branch condition
         
@@ -280,6 +328,11 @@ class EXE:
         elif op in ['FENCE', 'FENCE.I']:
             # For single-core simulator without separate I-cache, these are NOPs
             result = None
+        
+        # CSR instructions
+        elif op in ['CSRRW', 'CSRRS', 'CSRRC', 'CSRRWI', 'CSRRSI', 'CSRRCI']:
+            # CSR operations return special marker that needs CSR bank access
+            result = {'type': 'csr', 'operation': op, 'csr_addr': instruction.csr_addr}
             
         # Branch instructions
         elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
