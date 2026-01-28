@@ -68,6 +68,12 @@ class Instruction:
             self.operation = text_upper
             self.dest_reg = None  # System instructions don't write to register
             self.src_regs = []
+        
+        # Memory ordering instructions (FENCE, FENCE.I)
+        elif text_upper in ['FENCE', 'FENCE.I']:
+            self.operation = text_upper
+            self.dest_reg = None  # FENCE instructions don't write to register
+            self.src_regs = []
             
         # Branch instructions
         elif text_upper.startswith('B'):

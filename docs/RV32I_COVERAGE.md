@@ -3,12 +3,12 @@
 ## Current Implementation Status
 
 **Total RV32I Instructions: 40**  
-**Implemented: 31 (77.5%)**  
-**Missing: 9 (22.5%)**
+**Implemented: 33 (82.5%)**  
+**Missing: 7 (17.5%)**
 
 ---
 
-## ✅ FULLY IMPLEMENTED (31 instructions)
+## ✅ FULLY IMPLEMENTED (33 instructions)
 
 ### Integer Computation (10 R-type)
 | Instruction | Opcode | Description | Status |
@@ -79,15 +79,17 @@
 | Instruction | Opcode | Description | Status |
 |------------|--------|-------------|--------|
 | ECALL | 0x73 | Environment Call (system call) | ✅ Tested with syscalls |
-| EBREAK | 0x73 | Environment Breakpoint | ✅ Tested as halt |
+| EBREAK | 0x73 | Environment Breakpoint | ✅ Tested |
+
+### Memory Ordering Instructions (2)
+| Instruction | Opcode | Description | Status |
+|------------|--------|-------------|--------|
+| FENCE | 0x0F | Memory ordering fence | ✅ NOP (single-core) |
+| FENCE.I | 0x0F | Instruction cache fence | ✅ NOP (no I-cache) |
 
 ---
 
-## ❌ NOT IMPLEMENTED (9 instructions)
-| Instruction | Opcode | Why Missing | Priority |
-|------------|--------|-------------|----------|
-| FENCE | 0x0F | Multi-core memory synchronization | Low |
-| FENCE.I | 0x0F | I-cache synchronization | Low |
+## ❌ NOT IMPLEMENTED (7 instructions)
 
 ### Control and Status Registers (7)
 | Instruction | Opcode | Why Missing | Priority |

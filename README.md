@@ -13,7 +13,7 @@ This simulator implements a classic 5-stage in-order pipeline:
 **Key Features:**
 - **RAW Hazard Detection**: Detects read-after-write dependencies and inserts stalls
 - **Pipeline Flush**: Handles control flow changes (branches, jumps) by flushing incorrect instructions
-- **RV32I Support**: 31/40 instructions including all computational, load/store, branch, jump, and basic system instructions
+- **RV32I Support**: 33/40 instructions including all computational, load/store, branch, jump, system, and memory ordering instructions
 - **Cycle-Accurate**: Tracks exact cycle counts, stalls, and flushes for performance analysis
 
 ## Setup

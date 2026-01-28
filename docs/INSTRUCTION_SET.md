@@ -1,10 +1,10 @@
 # RISC-V Instruction Set - Implementation Status
 
-This document describes the RISC-V instructions supported by this simulator. **Status: 31/40 RV32I instructions implemented (77.5%)**
+This document describes the RISC-V instructions supported by this simulator. **Status: 33/40 RV32I instructions implemented (82.5%)**
 
 For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md).
 
-## Currently Implemented Instructions (31/40)
+## Currently Implemented Instructions (33/40)
 
 ### R-Type (Register-Register) Operations ✅ 10/10
 | Instruction | Format | Description | Example |
@@ -75,6 +75,17 @@ For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md)
 
 **Pipeline behavior:** All jumps trigger pipeline flush to discard incorrectly fetched instructions.
 
+### Memory Ordering Instructions ✅ 2/2
+| Instruction | Format | Description | Example |
+|------------|--------|-------------|---------|
+| FENCE | `FENCE` | Memory ordering fence | `FENCE` → Ensures memory ordering (NOP in single-core) |
+| FENCE.I | `FENCE.I` | Instruction cache fence | `FENCE.I` → Synchronizes I-cache (NOP without I-cache) |
+
+**Implementation details:**
+- **FENCE**: Implemented as NOP for single-core simulator
+- **FENCE.I**: Implemented as NOP (no separate instruction cache)
+- Both instructions complete in one cycle without side effects
+
 ### System Instructions ✅ 2/2
 | Instruction | Format | Description | Example |
 |------------|--------|-------------|---------|
@@ -117,19 +128,7 @@ All operations are performed on 32-bit values with proper masking.
 - **Signed:** `SLT`, `SLTI`, `BLT`, `BGE` - uses two's complement comparison
 - **Unsigned:** `SLTU`, `SLTIU`, `BLTU`, `BGEU` - uses unsigned comparison
 
-## Not Yet Implemented (9/40 RV32I)
-
-### System Instructions ✅ 2/2 IMPLEMENTED
-| Instruction | Status |
-|------------|--------|
-| ECALL | ✅ Implemented with basic syscall support |
-| EBREAK | ✅ Implemented as breakpoint/halt |
-
-### Memory Ordering ❌ 0/2
-| Instruction | Why Missing | Impact |
-|------------|-------------|--------|
-| FENCE | Multi-core synchronization | Single-core simulator doesn't need it (can be NOP) |
-| FENCE.I | Instruction cache synchronization | No separate I-cache (can be NOP) |
+## Not Yet Implemented (7/40 RV32I)
 
 ### Control and Status Registers (CSR) ❌ 0/7
 | Instruction | Why Missing | Impact |
@@ -137,11 +136,11 @@ All operations are performed on 32-bit values with proper masking.
 | CSRRW, CSRRS, CSRRC | CSR bank not implemented | Cannot access performance counters |
 | CSRRWI, CSRRSI, CSRRCI | CSR bank not implemented | Cannot use immediate CSR operations |
 
-**Note:** The simulator now supports basic system calls via ECALL and breakpoints via EBREAK. Missing instructions are memory ordering (FENCE) and CSR operations.
+**Note:** The simulator now supports basic system calls via ECALL, breakpoints via EBREAK, and memory ordering instructions (FENCE, FENCE.I). Only CSR operations remain unimplemented.
 
 ## Test Coverage
 
-**125 tests** covering:
+**139 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -151,8 +150,7 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ Upper immediate instructions (LUI, AUIPC)
 - ✅ All branch types (BEQ, BNE, BLT, BGE, BLTU, BGEU) with pipeline flush
 - ✅ Jump instructions (JAL, JALR) with return address and flush
-- ✅ System instructions (ECALL, EBREAK) with syscall emulation
-- ✅ RAW hazard detection and stalling
+- ✅ System instructions (ECALL, EBREAK) with syscall emulation- ✅ Memory ordering instructions (FENCE, FENCE.I) as NOPs- ✅ RAW hazard detection and stalling
 - ✅ Pipeline flush mechanism
 - ✅ Complex multi-instruction programs
 

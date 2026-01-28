@@ -275,6 +275,11 @@ class EXE:
         elif op == 'EBREAK':
             # EBREAK signals breakpoint
             result = {'type': 'ebreak'}
+        
+        # Memory ordering instructions
+        elif op in ['FENCE', 'FENCE.I']:
+            # For single-core simulator without separate I-cache, these are NOPs
+            result = None
             
         # Branch instructions
         elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
