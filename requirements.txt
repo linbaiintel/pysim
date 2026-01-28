@@ -1,5 +1,12 @@
-# Core simulator dependencies
-simpy==4.1.1
+# RISC-V 5-Stage Pipeline Simulator Dependencies
+# Python 3.12+
 
-# Test and validation tools
-pyelftools==0.32
+# Core simulator framework
+simpy==4.1.1        # Discrete-event simulation for pipeline modeling
+
+# Test and binary validation tools
+pyelftools==0.32    # ELF binary parsing for RISC-V test suite integration
+
+# Optional development tools (uncomment if needed)
+# pytest>=7.0.0     # Alternative test runner
+# pytest-cov>=4.0.0 # Test coverage reporting

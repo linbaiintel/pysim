@@ -1,16 +1,20 @@
 # RISC-V 5-Stage Pipeline Simulator
 
-A time-stepped simulation of a RISC-V 5-stage pipeline using SimPy, with hazard detection and stall insertion.
+A cycle-accurate simulation of a RISC-V 5-stage pipeline using SimPy, with comprehensive hazard detection, pipeline flush mechanism, and support for 29 RV32I instructions.
 
 ## Overview
 This simulator implements a classic 5-stage in-order pipeline:
 - **IF** (Fetch): Fetch instruction from memory
 - **ID** (Decode): Decode instruction and read registers
-- **EXE** (Execute): Perform execution operations
-- **MEM** (Memory): Access data memory
-- **WB** (WriteBack): Write result to register
+- **EXE** (Execute): Perform ALU operations, compute addresses, evaluate branches
+- **MEM** (Memory): Access data memory for loads/stores
+- **WB** (WriteBack): Write result to register file
 
-The simulator detects **RAW (Read After Write)** hazards and inserts stalls/bubbles to maintain correctness.
+**Key Features:**
+- **RAW Hazard Detection**: Detects read-after-write dependencies and inserts stalls
+- **Pipeline Flush**: Handles control flow changes (branches, jumps) by flushing incorrect instructions
+- **RV32I Support**: 29/40 instructions including all computational, load/store, branch, and jump instructions
+- **Cycle-Accurate**: Tracks exact cycle counts, stalls, and flushes for performance analysis
 
 ## Setup
 
@@ -68,75 +72,58 @@ python sandbox/vis_pipeline.py
 
 ### Run Test Suite
 ```bash
-# Run all tests
-python -m unittest discover tests -v
+# Run all functional tests (109 tests)
+python -m unittest discover tests/functional_tests -v
 
-# Run specific test module
-python -m unittest tests.test_correctness
-python -m unittest tests.test_hazards
-python -m unittest tests.test_edge_cases
+# Run specific test modules
+python -m unittest tests.functional_tests.test_branch -v
+python -m unittest tests.functional_tests.test_jump -v
+python -m unittest tests.functional_tests.test_flush -v
+python -m unittest tests.functional_tests.test_load_store -v
 
-# Or use the test runner
-python tests/run_tests.py
+# Or use convenience scripts
+./scripts/run_all_tests.sh
+./scripts/run_functional_tests.sh
 ```
 
 ## Test Categories
 
-### 1. Functional Correctness Tests
-**What to verify:**
-- All instructions complete execution
-- Instructions complete in program order (in-order pipeline)
-- No instructions are lost or duplicated
-- Register dependencies are respected
+### 1. Instruction Type Tests (109 Total Tests)
+**Coverage by category:**
 
-**Run tests:**
-```bash
-python -m unittest tests.test_correctness -v
-```
+#### Arithmetic & Logic (test_instruction_types.py, test_comparison.py, test_immediate.py, test_shift.py)
+- R-type operations (ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA)
+- I-type immediate operations (ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI)
+- Comparison operations and edge cases
+- Shift operations (logical and arithmetic)
 
-**Key tests:**
-- ✅ Back-to-back dependencies
-- ✅ Independent instructions
-- ✅ LOAD-use hazards
-- ✅ Mixed dependencies
-- ✅ Instruction parsing (R-type, LOAD, STORE)
+#### Memory Operations (test_load_store.py)
+- Load variants: LW, LH, LB, LHU, LBU (with sign/zero extension)
+- Store variants: SW, SH, SB
+- Unaligned access, edge addresses, hazard detection
 
-### 2. Hazard Detection Tests
-**What to verify:**
-- RAW (Read After Write) hazards are detected
-- Stalls are inserted when needed
-- No false hazards (over-stalling)
-- WAW and WAR are correctly ignored in in-order pipeline
+#### Control Flow (test_branch.py, test_jump.py, test_flush.py)
+- Branch instructions: BEQ, BNE, BLT, BGE, BLTU, BGEU
+- Jump instructions: JAL, JALR (with return address calculation)
+- Pipeline flush on taken branches and jumps
+- No flush on not-taken branches
 
-**Run tests:**
-```bash
-python -m unittest tests.test_hazards -v
-```
+#### Upper Immediate (test_upper_immediate.py)
+- LUI (Load Upper Immediate)
+- AUIPC (Add Upper Immediate to PC)
 
-**Expected behavior:**
-- RAW with Execute stage: 3 cycle stall
-- RAW with Memory stage: 2 cycle stall  
-- No stall for WriteBack stage (data available)
-- No stall for independent instructions
-
-### 3. Edge Case and Performance Tests
-**What to verify:**
-- Single instruction execution
+#### Pipeline Behavior (test_pipeline.py, test_edge_cases.py)
+- RAW hazard detection and stalling
+- Pipeline flush mechanism
+- Bubble insertion
 - Long dependency chains
-- STORE instructions (no destination register)
-- All instruction types (R-type, LOAD, STORE)
-- CPI (Cycles Per Instruction) metrics
-- IPC (Instructions Per Cycle) metrics
+- CPI/IPC calculations
 
-**Run tests:**
+**Run all tests:**
 ```bash
-python -m unittest tests.test_edge_cases -v
+python -m unittest discover tests/functional_tests -v
+# Output: Ran 109 tests in ~0.05s
 ```
-
-**Expected metrics:**
-- Independent instructions: CPI ≈ 2.0-2.5 (with pipeline fill)
-- With dependencies: CPI increases with stalls
-- Maximum IPC ≈ 1.0 (one instruction per cycle at steady state)
 
 ## Pipeline Visualization
 
@@ -178,15 +165,22 @@ draw_pipeline_diagram([
 4. **Memory**: Access memory (LOAD/STORE)
 5. **WriteBack**: Write result to register file
 
-### Hazard Detection
-- Checks Execute and Memory stages for RAW hazards
-- Inserts bubbles into Execute stage when hazard detected
-- Stalls until producer instruction reaches WriteBack
+### Hazard Detection & Pipeline Control
+- **RAW Detection**: Checks Execute and Memory stages for read-after-write hazards
+- **Stall Insertion**: Inserts bubbles when hazards detected (3 cycles for EXE, 2 for MEM)
+- **Pipeline Flush**: Flushes IF and ID stages on control flow changes (jumps, taken branches)
+- **Flush Tracking**: Counts flushes for performance analysis
 
-### Supported Instructions
-- **R-type**: `ADD R1, R2, R3`, `SUB R4, R5, R6`, `OR R7, R8, R9`, `AND R10, R11, R12`, `XOR R13, R14, R15`
-- **LOAD**: `LOAD R1, 100(R2)`
-- **STORE**: `STORE R3, 200(R4)`
+### Supported Instructions (29/40 RV32I)
+- **R-type (10)**: ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA
+- **I-type ALU (9)**: ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI
+- **Load (5)**: LW, LH, LB, LHU, LBU
+- **Store (3)**: SW, SH, SB
+- **Upper (2)**: LUI, AUIPC
+- **Branch (6)**: BEQ, BNE, BLT, BGE, BLTU, BGEU
+- **Jump (2)**: JAL, JALR
+
+See [docs/RV32I_COVERAGE.md](docs/RV32I_COVERAGE.md) for complete instruction coverage and missing system instructions.
 
 ## Testing Strategy
 
@@ -256,88 +250,162 @@ Stall Rate = Stalls / Instructions
 
 ```
 pysim/
-├── riscv.py                # Main processor interface (start here!)
-├── pipeline.py             # Pipeline implementation
-├── instruction.py          # Instruction parsing
-├── register_file.py        # Register file component
-├── memory.py               # Data memory component
-├── exe.py                  # Execution Unit (EXE)
-├── requirements.txt        # Python dependencies (simpy, pyelftools)
-├── README.md               # This file (main documentation)
-├── INSTRUCTION_SET.md      # Supported RISC-V instruction reference
-├── RISCV_TESTS_GUIDE.md    # Guide for using official RISC-V tests
-├── .gitignore              # Git ignore rules
-├── .gitmodules             # Git submodule configuration
-├── 3rd_party/              # Third-party dependencies
-│   └── riscv-tests/        # Official RISC-V test suite (submodule)
-├── utils/                  # Utility modules
+├── riscv.py                     # Main processor interface (start here!)
+├── pipeline.py                  # 5-stage pipeline with hazard detection & flush
+├── instruction.py               # Instruction parsing and representation
+├── register_file.py             # 32-register file with R0=0 enforcement
+├── memory.py                    # Byte-addressable memory (4KB default)
+├── exe.py                       # Execution unit (ALU, branches, jumps)
+├── requirements.txt             # Python dependencies (simpy, pyelftools)
+├── README.md                    # This file (main documentation)
+├── .gitignore                   # Git ignore rules
+├── .gitmodules                  # Git submodule configuration
+│
+├── docs/                        # Documentation
+│   ├── README.md                # Documentation index and navigation
+│   ├── INSTRUCTION_SET.md       # Instruction reference with examples
+│   ├── RV32I_COVERAGE.md        # Complete RV32I implementation status (29/40)
+│   ├── PROJECT_OVERVIEW.md      # Architecture and design documentation
+│   ├── FILE_INDEX.md            # Complete file listing and navigation
+│   ├── JAL_JALR_IMPLEMENTATION.md  # Jump instruction implementation details
+│   ├── PIPELINE_FLUSH.md        # Pipeline flush mechanism documentation
+│   ├── RISCV_TESTS_GUIDE.md     # Guide for official RISC-V test suite
+│   └── UPDATE_SUMMARY.md        # Recent documentation updates
+│
+├── 3rd_party/                   # Third-party dependencies
+│   └── riscv-tests/             # Official RISC-V test suite (git submodule)
+│
+├── utils/                       # Utility modules
 │   ├── __init__.py
-│   ├── elf_loader.py       # ELF binary loader & decoder
-│   ├── riscv_test_utils.py # Test pattern extraction utilities
-│   └── README.md           # Utils documentation
-├── scripts/                # Convenience scripts
-│   ├── run_functional_tests.sh  # Run RISC-V functional tests
-│   ├── run_unit_tests.sh        # Run unit tests
+│   ├── elf_loader.py            # ELF binary loader & RISC-V decoder
+│   ├── riscv_test_utils.py      # Test pattern extraction utilities
+│   └── README.md                # Utils documentation
+│
+├── scripts/                     # Convenience scripts
 │   ├── run_all_tests.sh         # Run all tests
+│   ├── run_functional_tests.sh  # Run functional tests only
+│   ├── run_unit_tests.sh        # Run unit tests only
 │   └── README.md                # Scripts documentation
-├── sandbox/                # Experimental scripts
-│   └── vis_pipeline.py     # Custom visualization examples
-└── tests/                  # Test suite
+│
+├── sandbox/                     # Experimental/development scripts
+│   ├── demo_flush.py            # Pipeline flush demonstrations
+│   ├── demo_inst.py             # Instruction execution demos
+│   ├── demo_jump.py             # Jump instruction demos
+│   └── vis_pipeline.py          # Custom visualization examples
+│
+└── tests/                       # Test suite (109 tests)
     ├── __init__.py
-    ├── test_all.py         # Comprehensive unit tests
-    ├── test_correctness.py # Functional correctness tests
-    ├── test_hazards.py     # Hazard detection tests
-    ├── test_edge_cases.py  # Edge cases and performance
-    ├── visualization.py    # Visualization utilities
-    ├── run_tests.py        # Test runner
-    ├── README_TESTS.md     # Test documentation
-    └── functional_tests/   # RISC-V official test integration
+    ├── test_all.py              # Legacy test runner
+    ├── run_tests.py             # Modern test runner
+    ├── visualization.py         # Pipeline execution visualization
+    ├── README.md                # Test documentation
+    ├── README_TESTS.md          # Detailed test guide
+    └── functional_tests/        # Comprehensive functional tests (109 tests)
         ├── __init__.py
-        ├── riscv_test_adapter.py  # Test execution logic
-        ├── run_riscv_tests.py     # Main test runner
-        └── README.md              # Functional tests docs
+        ├── README.md                   # Functional tests documentation
+        ├── test_instruction_types.py   # R-type and I-type tests
+        ├── test_immediate.py           # Immediate operation tests
+        ├── test_comparison.py          # SLT/SLTU tests
+        ├── test_shift.py               # Shift operation tests
+        ├── test_load_store.py          # Load/store variants (LW/LH/LB/LHU/LBU, SW/SH/SB)
+        ├── test_upper_immediate.py     # LUI and AUIPC tests
+        ├── test_branch.py              # Branch instruction tests (BEQ/BNE/BLT/BGE/BLTU/BGEU)
+        ├── test_jump.py                # Jump tests (JAL/JALR) - 12 tests
+        ├── test_flush.py               # Pipeline flush mechanism - 9 tests
+        ├── test_pipeline.py            # Pipeline behavior tests
+        ├── test_edge_cases.py          # Edge cases and corner cases
+        ├── test_complex_programs.py    # Multi-instruction programs
+        ├── riscv_test_adapter.py       # Adapter for official RISC-V tests
+        └── run_riscv_tests.py          # Official test suite runner
 ```
 
 **Key Directories:**
-- **Core Simulator**: Root-level .py files (riscv.py, pipeline.py, etc.)
-- **Utils**: Reusable utilities for test extraction and ELF parsing
-- **Tests**: Unit tests and functional test integration (217 RISC-V tests)
-- **Scripts**: Bash wrappers for convenient test execution
-- **3rd_party**: External dependencies (RISC-V test suite as submodule)
+- **Core Simulator**: Root-level .py files (riscv.py, pipeline.py, instruction.py, etc.)
+- **docs/**: Comprehensive documentation including RV32I coverage analysis
+- **utils/**: ELF loading and RISC-V instruction decoding utilities
+- **tests/functional_tests/**: 109 comprehensive tests covering all implemented instructions
+- **scripts/**: Shell scripts for convenient test execution
+- **3rd_party/**: Official RISC-V test suite (git submodule)
 
 ## Testing Checklist
 
-- [ ] All instructions complete successfully
-- [ ] RAW hazards are detected and stalled
-- [ ] Independent instructions don't stall
-- [ ] Instruction order is preserved
-- [ ] All 5 stages are executed for each instruction
-- [ ] Bubbles are inserted during stalls
-- [ ] Pipeline state is tracked correctly
-- [ ] LOAD instructions work correctly
-- [ ] STORE instructions work correctly
-- [ ] Single instruction works
-- [ ] Long dependency chains work
-- [ ] CPI/IPC metrics are reasonable
+**Core Functionality**
+- [x] All instructions complete successfully (109/109 tests passing)
+- [x] RAW hazards are detected and stalled
+- [x] Independent instructions don't stall
+- [x] Instruction order is preserved (in-order pipeline)
+- [x] All 5 stages are executed for each instruction
+- [x] Bubbles are inserted during stalls
+- [x] Pipeline state is tracked correctly
 
-## Future Enhancements
+**Instruction Coverage**
+- [x] R-type operations (ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA)
+- [x] I-type operations (ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI)
+- [x] Load variants (LW, LH, LB, LHU, LBU) with sign/zero extension
+- [x] Store variants (SW, SH, SB)
+- [x] Upper immediate (LUI, AUIPC)
+- [x] Branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU)
+- [x] Jump instructions (JAL, JALR) with return address calculation
 
-### Data Forwarding
-- EX → EX forwarding: 0 cycle stall
-- MEM → EX forwarding: 0 cycle stall
+**Pipeline Control**
+- [x] Pipeline flush on jumps (JAL, JALR)
+- [x] Pipeline flush on taken branches
+- [x] No flush on not-taken branches
+- [x] Flush converts Decode instructions to bubbles
+- [x] Flush count tracked for performance metrics
+
+**Edge Cases**
+- [x] Single instruction execution
+- [x] Long dependency chains
+- [x] STORE instructions (no destination register)
+- [x] Jump to register with LSB clearing (JALR)
+- [x] Negative offsets and edge addresses
+- [x] R0 hardwired to zero
+- [x] CPI/IPC metrics calculated correctly
+
+## Implementation Status
+
+### ✅ Completed Features
+- 29/40 RV32I instructions (all computational instructions)
+- RAW hazard detection with stall insertion
+- Pipeline flush mechanism for control flow changes
+- Cycle-accurate simulation with performance metrics
+- Comprehensive test suite (109 tests)
+- All load/store variants with proper sign/zero extension
+- Jump instructions (JAL, JALR) with return address handling
+- All branch instructions with condition evaluation
+
+### ⚠️ Missing from RV32I (11 instructions)
+- **System calls**: ECALL, EBREAK
+- **Memory ordering**: FENCE, FENCE.I (can be implemented as NOPs)
+- **CSR operations**: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
+
+**Note**: The simulator is **functionally complete** for user-mode computational programs. Missing instructions are system/privileged level operations. See [docs/RV32I_COVERAGE.md](docs/RV32I_COVERAGE.md) for details.
+
+### 🚀 Future Enhancements
+
+**Data Forwarding (Reduce Stalls)**
+- EX → EX forwarding: 0 cycle stall instead of 3
+- MEM → EX forwarding: 0 cycle stall instead of 2
 - WB → EX forwarding: 0 cycle stall
-- LOAD-use still requires 1 cycle stall
+- LOAD-use hazard: 1 cycle stall instead of 2-3
 
-### Branch Prediction
-- Branch misprediction penalty
-- Flush pipeline on misprediction
-- Branch target buffer
+**Branch Prediction**
+- Static prediction (always taken/not taken)
+- Dynamic prediction (branch history table)
+- Branch target buffer (BTB)
+- Return address stack (RAS) for function calls
 
-### Out-of-Order Execution
-- WAW hazards become real
-- WAR hazards become real
-- Register renaming needed
-- Reorder buffer
+**Out-of-Order Execution**
+- Instruction window and reservation stations
+- Register renaming (WAW/WAR hazard elimination)
+- Reorder buffer for in-order commit
+- Speculative execution
+
+**System Support**
+- Basic syscall emulation (exit, write) for running C programs
+- CSR register bank for performance counters
+- Exception and interrupt handling
 
 ## Quick Reference
 
