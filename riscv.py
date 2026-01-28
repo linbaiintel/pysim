@@ -92,8 +92,19 @@ class RISCVProcessor:
         return {k: v for k, v in self.register_file.registers.items() if v != 0}
     
     def get_memory_state(self):
-        """Get all memory contents"""
-        return dict(self.memory.data)
+        """Get all memory contents (word-addressed for compatibility)"""
+        # For backward compatibility, return word-addressed memory like before
+        mem_dict = {}
+        # Scan through memory and extract non-zero words
+        for word_addr in range(0, self.memory.size // 4):
+            byte_addr = word_addr * 4
+            try:
+                value = self.memory.read_word(byte_addr)
+                if value != 0:
+                    mem_dict[word_addr] = value
+            except:
+                pass
+        return mem_dict
     
     def reset(self):
         """Reset the processor to initial state"""

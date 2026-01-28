@@ -55,9 +55,10 @@ class DecodeStage(PipelineStage):
 
 
 class ExecuteStage(PipelineStage):
-    def __init__(self, env, exe):
+    def __init__(self, env, exe, register_file):
         super().__init__(env, "Execute", latency=1)
         self.exe = exe
+        self.register_file = register_file
     
     def process(self, instruction):
         """Simulate executing instruction"""
@@ -68,7 +69,9 @@ class ExecuteStage(PipelineStage):
             op = instruction.operation
             
             # Execute instruction through EXE
-            result, mem_address = self.exe.execute_instruction(instruction)
+            # Get current PC for AUIPC instruction
+            current_pc = self.register_file.read_pc()
+            result, mem_address = self.exe.execute_instruction(instruction, current_pc)
             
             # Store results in instruction
             if mem_address is not None:
@@ -82,7 +85,7 @@ class ExecuteStage(PipelineStage):
                 if op == 'LUI':
                     print(f"  -> LUI result: {result:#010x}")
                 elif op == 'AUIPC':
-                    print(f"  -> AUIPC not fully implemented (needs PC)")
+                    print(f"  -> AUIPC result: PC({current_pc:#010x}) + {instruction.immediate:#010x} = {result:#010x}")
                 elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
                     branch_taken = (result == 1)
                     print(f"  -> Branch {op}: {'TAKEN' if branch_taken else 'NOT TAKEN'} (PC update not implemented)")
@@ -146,7 +149,7 @@ class Pipeline:
         # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
         self.decode = DecodeStage(env, self.register_file)
-        self.execute = ExecuteStage(env, self.exe)
+        self.execute = ExecuteStage(env, self.exe, self.register_file)
         self.memory_stage = MemoryStage(env, self.memory)
         self.write_back = WriteBackStage(env, self.register_file)
         

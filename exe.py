@@ -115,9 +115,9 @@ class EXE:
             pc: Program counter value (default 0 if not tracked)
             
         Returns:
-            PC + (immediate << 12)
+            PC + (immediate << 12), masked to 32 bits
         """
-        return pc + ((immediate & 0xFFFFF) << 12)
+        return (pc + ((immediate & 0xFFFFF) << 12)) & 0xFFFFFFFF
     
     @staticmethod
     def evaluate_branch(operation, val1, val2):
@@ -149,11 +149,12 @@ class EXE:
             return False
     
     @staticmethod
-    def execute_instruction(instruction):
+    def execute_instruction(instruction, pc=0):
         """Execute any instruction and return result
         
         Args:
             instruction: Instruction object with operation, src_values, immediate, etc.
+            pc: Current program counter value (needed for AUIPC)
             
         Returns:
             Tuple of (result, mem_address) where mem_address is None for non-memory ops
@@ -175,7 +176,7 @@ class EXE:
             result = EXE.execute_lui(instruction.immediate)
             
         elif op == 'AUIPC':
-            result = EXE.execute_auipc(instruction.immediate)
+            result = EXE.execute_auipc(instruction.immediate, pc)
             
         # Branch instructions
         elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:

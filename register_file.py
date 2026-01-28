@@ -18,9 +18,9 @@ class RegisterFile:
         return self.registers.get(reg_name, 0)
     
     def write(self, reg_name, value):
-        """Write value to register"""
+        """Write value to register (masked to 32-bit)"""
         if reg_name and reg_name != 'R0':  # R0 is always 0 in RISC-V
-            self.registers[reg_name] = value
+            self.registers[reg_name] = value & 0xFFFFFFFF
     
     def read_pc(self):
         """Read program counter"""

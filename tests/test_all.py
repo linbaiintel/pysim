@@ -15,6 +15,10 @@ import simpy
 from pipeline import Pipeline, Instruction
 from riscv import run_program
 
+# Import functional tests
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'functional_tests')))
+from test_upper_immediate import TestUpperImmediateInstructions
+
 
 # ============================================================================
 # PIPELINE CORRECTNESS TESTS
