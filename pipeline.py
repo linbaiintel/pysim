@@ -88,9 +88,19 @@ class ExecuteStage(PipelineStage):
                     print(f"  -> AUIPC result: PC({current_pc:#010x}) + {instruction.immediate:#010x} = {result:#010x}")
                 elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
                     branch_taken = (result == 1)
-                    print(f"  -> Branch {op}: {'TAKEN' if branch_taken else 'NOT TAKEN'} (PC update not implemented)")
+                    if branch_taken:
+                        # Calculate branch target (PC + offset)
+                        branch_target = (current_pc + instruction.offset) & 0xFFFFFFFF
+                        instruction.jump_target = branch_target
+                        print(f"  -> Branch {op}: TAKEN, target = {branch_target:#010x} - FLUSHING PIPELINE")
+                        # Signal pipeline flush
+                        # Note: Flush will occur after this instruction completes Execute stage
+                    else:
+                        print(f"  -> Branch {op}: NOT TAKEN")
                 elif op in ['JAL', 'JALR']:
-                    print(f"  -> {op}: Jump instruction (PC update not implemented)")
+                    print(f"  -> {op}: Return address = {result:#010x}, Jump target = {instruction.jump_target:#010x} - FLUSHING PIPELINE")
+                    # Signal pipeline flush for unconditional jumps
+                    # Note: Flush will occur after this instruction completes Execute stage
                 else:
                     print(f"  -> EXE result: {result}")
         
@@ -203,6 +213,11 @@ class Pipeline:
         self.stall_count = 0
         self.bubble_count = 0
         self.completion_time = 0  # Track when last instruction completes
+        self.flush_count = 0  # Track number of pipeline flushes
+        
+        # Pipeline flush control
+        self.flush_signal = False  # Flag to trigger flush
+        self.flush_target_pc = None  # New PC value after jump/branch
         
         # Track instructions currently in pipeline stages (for hazard detection)
         self.pipeline_state = {
@@ -211,6 +226,13 @@ class Pipeline:
             'writeback': None
         }
 
+    def trigger_flush(self, target_pc):
+        """Trigger a pipeline flush and set new PC target"""
+        self.flush_signal = True
+        self.flush_target_pc = target_pc
+        self.flush_count += 1
+        print(f"[Cycle {self.env.now}] Pipeline flush triggered, target PC = {target_pc:#010x}")
+    
     def check_hazard(self, instruction):
         """Check for RAW, WAR, WAW hazards"""
         if instruction.is_bubble:
@@ -249,6 +271,13 @@ class Pipeline:
         while True:
             instruction = yield input_buffer.get()
             
+            # Check if this instruction should be flushed (for Fetch and Decode stages)
+            if self.flush_signal and stage_name in ['decode']:
+                # Convert to bubble if in early stages during flush
+                print(f"[Cycle {self.env.now}] FLUSH: Converting {instruction} to bubble in {stage_name} stage")
+                instruction = Instruction("BUBBLE")
+                # Don't clear flush signal yet - let it propagate
+            
             # Update pipeline state IMMEDIATELY when entering stage
             if stage_name and stage_name != 'decode':
                 self.pipeline_state[stage_name] = instruction
@@ -259,22 +288,33 @@ class Pipeline:
                 # This handles SimPy concurrent execution within the same cycle
                 yield self.env.timeout(0)
                 
-                # Check for hazards before decoding
-                while self.check_hazard(instruction):
-                    # Insert bubble and stall
-                    print(f"[Cycle {self.env.now}] STALL: Inserting bubble into Execute stage")
-                    bubble = Instruction("BUBBLE")
-                    self.stall_count += 1
-                    self.bubble_count += 1
-                    
-                    # Send bubble to next stage
-                    yield output_buffer.put(bubble)
-                    yield self.env.timeout(1)
-                    
-                    # Keep checking hazard on same instruction
+                # Check for hazards before decoding (skip if being flushed)
+                if not instruction.is_bubble:
+                    while self.check_hazard(instruction):
+                        # Insert bubble and stall
+                        print(f"[Cycle {self.env.now}] STALL: Inserting bubble into Execute stage")
+                        bubble = Instruction("BUBBLE")
+                        self.stall_count += 1
+                        self.bubble_count += 1
+                        
+                        # Send bubble to next stage
+                        yield output_buffer.put(bubble)
+                        yield self.env.timeout(1)
+                        
+                        # Keep checking hazard on same instruction
             
             # Now process the instruction
             processed = yield self.env.process(stage.process(instruction))
+            
+            # After Execute stage, check if we need to trigger flush
+            if stage_name == 'execute' and not instruction.is_bubble:
+                op = instruction.operation
+                # Trigger flush for jumps and taken branches
+                if op in ['JAL', 'JALR'] and instruction.jump_target is not None:
+                    self.trigger_flush(instruction.jump_target)
+                elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
+                    if instruction.result == 1 and instruction.jump_target is not None:
+                        self.trigger_flush(instruction.jump_target)
             
             # Send to output buffer
             if output_buffer is not None:
@@ -288,6 +328,12 @@ class Pipeline:
             # Clear pipeline state after instruction exits this stage
             if stage_name and stage_name != 'decode':
                 self.pipeline_state[stage_name] = None
+            
+            # Clear flush signal after Memory stage (gives time for early stages to flush)
+            if stage_name == 'memory' and self.flush_signal:
+                print(f"[Cycle {self.env.now}] FLUSH: Clearing flush signal")
+                self.flush_signal = False
+                self.flush_target_pc = None
 
     def instruction_feeder(self, instructions):
         """Feed instructions into the pipeline"""

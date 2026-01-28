@@ -24,6 +24,8 @@ from test_upper_immediate import TestUpperImmediateInstructions
 from test_branch import TestBranchInstructions
 from test_complex_programs import TestComplexPrograms
 from test_load_store import TestLoadStoreInstructions
+from test_jump import TestJumpInstructions
+from test_flush import TestPipelineFlush
 
 
 if __name__ == '__main__':

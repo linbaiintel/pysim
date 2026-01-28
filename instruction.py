@@ -18,6 +18,8 @@ class Instruction:
         self.src_values = []
         self.result = None
         self.mem_address = None
+        self.jump_target = None  # For JAL/JALR jump target address
+        self.is_jump = False  # Flag for jump instructions
         
         if not self.is_bubble:
             self.parse()
@@ -72,6 +74,7 @@ class Instruction:
                 
         # Jump instructions
         elif text_upper.startswith('JAL'):
+            self.is_jump = True
             if 'JALR' in text_upper:
                 # JALR: dest, src, offset
                 match = re.search(r'JALR\s+(\w+),\s*(\w+),\s*(-?\d+)', self.text, re.IGNORECASE)

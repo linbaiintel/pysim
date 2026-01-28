@@ -56,12 +56,12 @@ This document describes the RISC-V instructions supported by this simulator.
 | BGEU | `BGEU rs1, rs2, offset` | Branch if Greater or Equal (unsigned) | `BGEU R1, R2, 100` → if (R1 >= R2) branch |
 
 ### Jump Operations
-**Note:** Jump instructions recognized but PC tracking not implemented.
+**Note:** Jump instructions calculate return address and jump target. Pipeline flush not yet implemented.
 
 | Instruction | Format | Description | Status |
 |------------|--------|-------------|---------|
-| JAL | `JAL rd, offset` | Jump and Link | ⚠️ Parsed but not functional (needs PC) |
-| JALR | `JALR rd, rs1, offset` | Jump and Link Register | ⚠️ Parsed but not functional (needs PC) |
+| JAL | `JAL rd, offset` | Jump and Link | ✅ Functional - stores PC+4 in rd, calculates jump target |
+| JALR | `JALR rd, rs1, offset` | Jump and Link Register | ✅ Functional - stores PC+4 in rd, jumps to (rs1+offset)&~1 |
 
 ## Instruction Format Details
 

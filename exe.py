@@ -120,6 +120,41 @@ class EXE:
         return (pc + ((immediate & 0xFFFFF) << 12)) & 0xFFFFFFFF
     
     @staticmethod
+    def execute_jal(offset, pc=0):
+        """Execute JAL (Jump And Link) instruction
+        
+        Args:
+            offset: Signed offset to add to PC
+            pc: Current program counter value
+            
+        Returns:
+            Tuple of (return_address, jump_target)
+            - return_address: PC + 4 (address of next instruction)
+            - jump_target: PC + offset (where to jump to)
+        """
+        return_address = (pc + 4) & 0xFFFFFFFF
+        jump_target = (pc + offset) & 0xFFFFFFFF
+        return return_address, jump_target
+    
+    @staticmethod
+    def execute_jalr(base_value, offset, pc=0):
+        """Execute JALR (Jump And Link Register) instruction
+        
+        Args:
+            base_value: Value from source register
+            offset: Signed offset to add to base
+            pc: Current program counter value
+            
+        Returns:
+            Tuple of (return_address, jump_target)
+            - return_address: PC + 4 (address of next instruction)
+            - jump_target: (base_value + offset) & ~1 (LSB cleared per RISC-V spec)
+        """
+        return_address = (pc + 4) & 0xFFFFFFFF
+        jump_target = (base_value + offset) & 0xFFFFFFFE  # Clear LSB
+        return return_address, jump_target
+    
+    @staticmethod
     def evaluate_branch(operation, val1, val2):
         """Evaluate branch condition
         
@@ -192,8 +227,16 @@ class EXE:
             result = 1 if branch_taken else 0
             
         # Jump instructions
-        elif op in ['JAL', 'JALR']:
-            result = 0  # Would store return address (needs PC tracking)
+        elif op == 'JAL':
+            return_addr, jump_target = EXE.execute_jal(instruction.offset, pc)
+            result = return_addr  # Return address stored in rd
+            instruction.jump_target = jump_target
+            
+        elif op == 'JALR':
+            base_value = instruction.src_values[0] if instruction.src_values else 0
+            return_addr, jump_target = EXE.execute_jalr(base_value, instruction.offset, pc)
+            result = return_addr  # Return address stored in rd
+            instruction.jump_target = jump_target
             
         # ALU operations (including immediate)
         elif op:
