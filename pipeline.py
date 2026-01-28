@@ -107,14 +107,53 @@ class MemoryStage(PipelineStage):
         yield from super().process(instruction)
         
         # Perform memory operation
-        if not instruction.is_bubble:
-            if instruction.operation == 'LOAD':
-                instruction.result = self.memory.read(instruction.mem_address)
-                print(f"  -> Loaded value {instruction.result} from address {instruction.mem_address}")
-            elif instruction.operation == 'STORE':
+        if not instruction.is_bubble and instruction.mem_address is not None:
+            op = instruction.operation
+            
+            # LOAD operations
+            if op == 'LW' or op == 'LOAD':
+                # Load Word (32-bit)
+                instruction.result = self.memory.read_word(instruction.mem_address)
+                print(f"  -> LW: Loaded word {instruction.result:#010x} from address {instruction.mem_address:#x}")
+                
+            elif op == 'LH':
+                # Load Halfword (16-bit, sign-extended)
+                instruction.result = self.memory.read_halfword(instruction.mem_address, signed=True)
+                print(f"  -> LH: Loaded halfword {instruction.result:#010x} from address {instruction.mem_address:#x}")
+                
+            elif op == 'LHU':
+                # Load Halfword Unsigned (16-bit, zero-extended)
+                instruction.result = self.memory.read_halfword(instruction.mem_address, signed=False)
+                print(f"  -> LHU: Loaded halfword unsigned {instruction.result:#010x} from address {instruction.mem_address:#x}")
+                
+            elif op == 'LB':
+                # Load Byte (8-bit, sign-extended)
+                instruction.result = self.memory.read_byte(instruction.mem_address, signed=True)
+                print(f"  -> LB: Loaded byte {instruction.result:#010x} from address {instruction.mem_address:#x}")
+                
+            elif op == 'LBU':
+                # Load Byte Unsigned (8-bit, zero-extended)
+                instruction.result = self.memory.read_byte(instruction.mem_address, signed=False)
+                print(f"  -> LBU: Loaded byte unsigned {instruction.result:#010x} from address {instruction.mem_address:#x}")
+            
+            # STORE operations
+            elif op == 'SW' or op == 'STORE':
+                # Store Word (32-bit)
                 store_value = instruction.src_values[0] if instruction.src_values else 0
-                self.memory.write(instruction.mem_address, store_value)
-                print(f"  -> Stored value {store_value} to address {instruction.mem_address}")
+                self.memory.write_word(instruction.mem_address, store_value)
+                print(f"  -> SW: Stored word {store_value:#010x} to address {instruction.mem_address:#x}")
+                
+            elif op == 'SH':
+                # Store Halfword (16-bit)
+                store_value = instruction.src_values[0] if instruction.src_values else 0
+                self.memory.write_halfword(instruction.mem_address, store_value & 0xFFFF)
+                print(f"  -> SH: Stored halfword {store_value & 0xFFFF:#06x} to address {instruction.mem_address:#x}")
+                
+            elif op == 'SB':
+                # Store Byte (8-bit)
+                store_value = instruction.src_values[0] if instruction.src_values else 0
+                self.memory.write_byte(instruction.mem_address, store_value & 0xFF)
+                print(f"  -> SB: Stored byte {store_value & 0xFF:#04x} to address {instruction.mem_address:#x}")
         
         return instruction
 
@@ -163,6 +202,7 @@ class Pipeline:
         self.completed_instructions = []
         self.stall_count = 0
         self.bubble_count = 0
+        self.completion_time = 0  # Track when last instruction completes
         
         # Track instructions currently in pipeline stages (for hazard detection)
         self.pipeline_state = {
@@ -243,6 +283,7 @@ class Pipeline:
                 # Last stage - store completed instruction
                 if not instruction.is_bubble:
                     self.completed_instructions.append(processed)
+                    self.completion_time = self.env.now  # Track actual completion time
             
             # Clear pipeline state after instruction exits this stage
             if stage_name and stage_name != 'decode':
@@ -273,7 +314,8 @@ class Pipeline:
         
         # Run simulation for enough time to complete all instructions
         # Account for stalls - give extra cycles
-        total_cycles = len(instructions) * 2 + 10
+        # Use more cycles to ensure deeply dependent instructions complete
+        total_cycles = len(instructions) * 10 + 20
         self.env.run(until=total_cycles)
         
         return self.completed_instructions

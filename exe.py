@@ -167,8 +167,14 @@ class EXE:
         mem_address = None
         
         # Memory operations
-        if op in ['LOAD', 'STORE', 'LW', 'LH', 'LB', 'LBU', 'LHU', 'SW', 'SH', 'SB']:
+        if op in ['LOAD', 'LW', 'LH', 'LB', 'LBU', 'LHU']:
+            # LOAD: src_regs[0] is base address
             base_value = instruction.src_values[0] if instruction.src_values else 0
+            mem_address = EXE.calculate_memory_address(base_value, instruction.offset)
+            
+        elif op in ['STORE', 'SW', 'SH', 'SB']:
+            # STORE: src_regs[0] is value to store, src_regs[1] is base address
+            base_value = instruction.src_values[1] if len(instruction.src_values) > 1 else 0
             mem_address = EXE.calculate_memory_address(base_value, instruction.offset)
             
         # Upper immediate instructions
