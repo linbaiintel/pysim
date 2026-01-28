@@ -25,8 +25,32 @@ pip install simpy
 
 ### Basic Usage
 ```bash
-# Run basic examples
+# Run processor examples (main entry point)
+python riscv.py
+
+# Or run pipeline directly (low-level)
 python pipeline.py
+```
+
+### Using the Processor API
+```python
+from riscv import RISCVProcessor, run_program
+
+# Create and configure processor
+processor = RISCVProcessor()
+processor.initialize_registers({'R2': 10, 'R3': 20})
+processor.initialize_memory({100: 42})
+
+# Execute program
+program = ["ADD R1, R2, R3", "STORE R1, 100(R0)"]
+exec_info = processor.execute(program)
+
+# Or use convenience function
+exec_info, regs, mem = run_program(
+    instructions=program,
+    initial_registers={'R2': 10, 'R3': 20},
+    initial_memory={100: 42}
+)
 ```
 
 ### Visualize Pipeline Execution
@@ -35,7 +59,7 @@ python pipeline.py
 python tests/visualization.py
 
 # Or create custom visualization
-python sandbox/vis.py
+python sandbox/vis_pipeline.py
 ```
 
 ### Run Test Suite
@@ -228,20 +252,25 @@ Stall Rate = Stalls / Instructions
 
 ```
 pysim/
-├── pipeline.py              # Main pipeline simulator
-├── pysim-venv/             # Virtual environment
+├── riscv.py                # Main processor interface (start here!)
+├── pipeline.py             # Pipeline implementation
+├── instruction.py          # Instruction parsing
+├── register_file.py        # Register file component
+├── memory.py               # Data memory component
+├── alu.py                  # Arithmetic Logic Unit
+├── requirements.txt        # Python dependencies
+├── README.md               # This file (main documentation)
+├── .gitignore              # Git ignore rules
 ├── sandbox/                # Experimental scripts
-│   └── vis.py             # Custom visualization
-├── tests/                  # Test suite
-│   ├── __init__.py
-│   ├── test_correctness.py # Functional tests
-│   ├── test_hazards.py     # Hazard detection tests
-│   ├── test_edge_cases.py  # Edge cases and performance
-│   ├── visualization.py    # Visualization utilities
-│   ├── run_tests.py       # Test runner
-│   └── README.md          # Test documentation
-├── TESTING.md             # This file
-└── README.md              # Main documentation
+│   └── vis_pipeline.py     # Custom visualization examples
+└── tests/                  # Test suite
+    ├── __init__.py
+    ├── test_correctness.py # Functional tests
+    ├── test_hazards.py     # Hazard detection tests
+    ├── test_edge_cases.py  # Edge cases and performance
+    ├── visualization.py    # Visualization utilities
+    ├── run_tests.py        # Test runner
+    └── README.md           # Test documentation
 ```
 
 ## Testing Checklist
@@ -282,20 +311,20 @@ pysim/
 
 ### Run Everything
 ```bash
-# Activate environment
-source pysim-venv/bin/activate
+# Install required python library
+pip install -r requirements.txt
 
-# Run simulator with examples
-python pipeline.py
+# Run processor examples (recommended)
+python riscv.py
 
 # Run all tests
 python -m unittest discover tests -v
 
-# Visualize pipeline
+# Visualize pipeline execution
 python tests/visualization.py
 
 # Custom visualization
-python sandbox/vis.py
+python sandbox/vis_pipeline.py
 ```
 
 ### Debugging Tips
