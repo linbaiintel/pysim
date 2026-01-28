@@ -137,7 +137,12 @@ The ELF decoder supports:
 
 ## Dependencies
 
-- `pyelftools` - For parsing ELF files
-  ```bash
-  pip install pyelftools
-  ```
+All dependencies are listed in `requirements.txt`:
+
+```bash
+pip install -r requirements.txt
+```
+
+**Required packages:**
+- `pyelftools==0.32` - For parsing ELF files
+- `simpy==4.1.1` - Discrete event simulation framework

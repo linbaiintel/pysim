@@ -18,8 +18,12 @@ The simulator detects **RAW (Read After Write)** hazards and inserts stalls/bubb
 ```bash
 python3 -m venv pysim-venv
 source pysim-venv/bin/activate  # On Windows: pysim-venv\Scripts\activate
-pip install simpy
+pip install -r requirements.txt
 ```
+
+**Dependencies:**
+- `simpy==4.1.1` - Discrete event simulation framework
+- `pyelftools==0.32` - ELF binary parsing (for RISC-V test validation)
 
 ## Running the Simulator
 
@@ -258,20 +262,48 @@ pysim/
 ├── register_file.py        # Register file component
 ├── memory.py               # Data memory component
 ├── exe.py                  # Execution Unit (EXE)
-├── requirements.txt        # Python dependencies
+├── requirements.txt        # Python dependencies (simpy, pyelftools)
 ├── README.md               # This file (main documentation)
+├── INSTRUCTION_SET.md      # Supported RISC-V instruction reference
+├── RISCV_TESTS_GUIDE.md    # Guide for using official RISC-V tests
 ├── .gitignore              # Git ignore rules
+├── .gitmodules             # Git submodule configuration
+├── 3rd_party/              # Third-party dependencies
+│   └── riscv-tests/        # Official RISC-V test suite (submodule)
+├── utils/                  # Utility modules
+│   ├── __init__.py
+│   ├── elf_loader.py       # ELF binary loader & decoder
+│   ├── riscv_test_utils.py # Test pattern extraction utilities
+│   └── README.md           # Utils documentation
+├── scripts/                # Convenience scripts
+│   ├── run_functional_tests.sh  # Run RISC-V functional tests
+│   ├── run_unit_tests.sh        # Run unit tests
+│   ├── run_all_tests.sh         # Run all tests
+│   └── README.md                # Scripts documentation
 ├── sandbox/                # Experimental scripts
 │   └── vis_pipeline.py     # Custom visualization examples
 └── tests/                  # Test suite
     ├── __init__.py
-    ├── test_correctness.py # Functional tests
+    ├── test_all.py         # Comprehensive unit tests
+    ├── test_correctness.py # Functional correctness tests
     ├── test_hazards.py     # Hazard detection tests
     ├── test_edge_cases.py  # Edge cases and performance
     ├── visualization.py    # Visualization utilities
     ├── run_tests.py        # Test runner
-    └── README.md           # Test documentation
+    ├── README_TESTS.md     # Test documentation
+    └── functional_tests/   # RISC-V official test integration
+        ├── __init__.py
+        ├── riscv_test_adapter.py  # Test execution logic
+        ├── run_riscv_tests.py     # Main test runner
+        └── README.md              # Functional tests docs
 ```
+
+**Key Directories:**
+- **Core Simulator**: Root-level .py files (riscv.py, pipeline.py, etc.)
+- **Utils**: Reusable utilities for test extraction and ELF parsing
+- **Tests**: Unit tests and functional test integration (217 RISC-V tests)
+- **Scripts**: Bash wrappers for convenient test execution
+- **3rd_party**: External dependencies (RISC-V test suite as submodule)
 
 ## Testing Checklist
 

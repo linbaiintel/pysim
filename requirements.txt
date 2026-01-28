@@ -1,1 +1,5 @@
+# Core simulator dependencies
 simpy==4.1.1
+
+# Test and validation tools
+pyelftools==0.32

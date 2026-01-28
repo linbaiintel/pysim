@@ -244,11 +244,13 @@ Note: Current support includes TEST_RR_OP, TEST_IMM_OP, and TEST_SRLI.
 ```
 ModuleNotFoundError: No module named 'elftools'
 ```
-**Solution:** Activate virtual environment:
+**Solution:** Install dependencies:
 ```bash
 source pysim-venv/bin/activate
-pip install pyelftools
+pip install -r requirements.txt
 ```
+
+All required packages (simpy, pyelftools) are specified in `requirements.txt`.
 
 ---
 
