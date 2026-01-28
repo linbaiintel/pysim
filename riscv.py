@@ -2,7 +2,7 @@
 import simpy
 from register_file import RegisterFile
 from memory import Memory
-from alu import ALU
+from exe import EXE
 from pipeline import Pipeline
 
 
@@ -22,7 +22,7 @@ class RISCVProcessor:
         # Direct access to hardware components
         self.register_file = self.pipeline.register_file
         self.memory = self.pipeline.memory
-        self.alu = self.pipeline.alu
+        self.exe = self.pipeline.exe
     
     def initialize_registers(self, register_values):
         """

@@ -6,7 +6,7 @@ A time-stepped simulation of a RISC-V 5-stage pipeline using SimPy, with hazard 
 This simulator implements a classic 5-stage in-order pipeline:
 - **IF** (Fetch): Fetch instruction from memory
 - **ID** (Decode): Decode instruction and read registers
-- **EXE** (Execute): Perform ALU operations
+- **EXE** (Execute): Perform execution operations
 - **MEM** (Memory): Access data memory
 - **WB** (WriteBack): Write result to register
 
@@ -257,7 +257,7 @@ pysim/
 ├── instruction.py          # Instruction parsing
 ├── register_file.py        # Register file component
 ├── memory.py               # Data memory component
-├── alu.py                  # Arithmetic Logic Unit
+├── exe.py                  # Execution Unit (EXE)
 ├── requirements.txt        # Python dependencies
 ├── README.md               # This file (main documentation)
 ├── .gitignore              # Git ignore rules

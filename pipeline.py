@@ -2,7 +2,7 @@
 import simpy
 from register_file import RegisterFile
 from memory import Memory
-from alu import ALU
+from exe import EXE
 from instruction import Instruction
 
 
@@ -55,30 +55,41 @@ class DecodeStage(PipelineStage):
 
 
 class ExecuteStage(PipelineStage):
-    def __init__(self, env, alu):
+    def __init__(self, env, exe):
         super().__init__(env, "Execute", latency=1)
-        self.alu = alu
+        self.exe = exe
     
     def process(self, instruction):
         """Simulate executing instruction"""
         yield from super().process(instruction)
         
-        # Perform ALU operation or calculate memory address
+        # Delegate execution to EXE
         if not instruction.is_bubble:
-            if instruction.operation == 'LOAD' or instruction.operation == 'STORE':
-                # Calculate memory address: base + offset
-                base_value = instruction.src_values[0] if instruction.src_values else 0
-                instruction.mem_address = base_value + instruction.offset
+            op = instruction.operation
+            
+            # Execute instruction through EXE
+            result, mem_address = self.exe.execute_instruction(instruction)
+            
+            # Store results in instruction
+            if mem_address is not None:
+                instruction.mem_address = mem_address
                 print(f"  -> Calculated address: {instruction.mem_address}")
-            elif instruction.operation:
-                # Execute ALU operation
-                if len(instruction.src_values) >= 2:
-                    instruction.result = self.alu.execute(
-                        instruction.operation,
-                        instruction.src_values[0],
-                        instruction.src_values[1]
-                    )
-                    print(f"  -> ALU result: {instruction.result}")
+            
+            if result is not None:
+                instruction.result = result
+                
+                # Print appropriate message based on operation type
+                if op == 'LUI':
+                    print(f"  -> LUI result: {result:#010x}")
+                elif op == 'AUIPC':
+                    print(f"  -> AUIPC not fully implemented (needs PC)")
+                elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
+                    branch_taken = (result == 1)
+                    print(f"  -> Branch {op}: {'TAKEN' if branch_taken else 'NOT TAKEN'} (PC update not implemented)")
+                elif op in ['JAL', 'JALR']:
+                    print(f"  -> {op}: Jump instruction (PC update not implemented)")
+                else:
+                    print(f"  -> EXE result: {result}")
         
         return instruction
 
@@ -130,12 +141,12 @@ class Pipeline:
         # Create hardware components
         self.register_file = RegisterFile()
         self.memory = Memory()
-        self.alu = ALU()
+        self.exe = EXE()
         
         # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
         self.decode = DecodeStage(env, self.register_file)
-        self.execute = ExecuteStage(env, self.alu)
+        self.execute = ExecuteStage(env, self.exe)
         self.memory_stage = MemoryStage(env, self.memory)
         self.write_back = WriteBackStage(env, self.register_file)
         
