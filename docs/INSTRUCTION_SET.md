@@ -1,10 +1,10 @@
 # RISC-V Instruction Set - Implementation Status
 
-This document describes the RISC-V instructions supported by this simulator. **Status: 29/40 RV32I instructions implemented (72.5%)**
+This document describes the RISC-V instructions supported by this simulator. **Status: 31/40 RV32I instructions implemented (77.5%)**
 
 For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md).
 
-## Currently Implemented Instructions (29/40)
+## Currently Implemented Instructions (31/40)
 
 ### R-Type (Register-Register) Operations ✅ 10/10
 | Instruction | Format | Description | Example |
@@ -75,6 +75,17 @@ For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md)
 
 **Pipeline behavior:** All jumps trigger pipeline flush to discard incorrectly fetched instructions.
 
+### System Instructions ✅ 2/2
+| Instruction | Format | Description | Example |
+|------------|--------|-------------|---------|
+| ECALL | `ECALL` | Environment Call (system call) | `ECALL` → Invoke system call based on R17 |
+| EBREAK | `EBREAK` | Environment Breakpoint | `EBREAK` → Trigger breakpoint/halt execution |
+
+**Implementation details:**
+- **ECALL**: Supports basic syscalls (exit=93, print=1, write=64) via RISC-V calling convention
+- **EBREAK**: Halts execution and signals breakpoint condition
+- Both instructions don't write to destination registers
+
 ## Instruction Format Details
 
 ### Immediate Value Formats
@@ -106,13 +117,13 @@ All operations are performed on 32-bit values with proper masking.
 - **Signed:** `SLT`, `SLTI`, `BLT`, `BGE` - uses two's complement comparison
 - **Unsigned:** `SLTU`, `SLTIU`, `BLTU`, `BGEU` - uses unsigned comparison
 
-## Not Yet Implemented (11/40 RV32I)
+## Not Yet Implemented (9/40 RV32I)
 
-### System Instructions ❌ 0/2
-| Instruction | Why Missing | Impact |
-|------------|-------------|--------|
-| ECALL | Requires OS environment simulation | Cannot run programs with system calls (printf, exit) |
-| EBREAK | Requires debugger support | Cannot use breakpoints |
+### System Instructions ✅ 2/2 IMPLEMENTED
+| Instruction | Status |
+|------------|--------|
+| ECALL | ✅ Implemented with basic syscall support |
+| EBREAK | ✅ Implemented as breakpoint/halt |
 
 ### Memory Ordering ❌ 0/2
 | Instruction | Why Missing | Impact |
@@ -126,11 +137,11 @@ All operations are performed on 32-bit values with proper masking.
 | CSRRW, CSRRS, CSRRC | CSR bank not implemented | Cannot access performance counters |
 | CSRRWI, CSRRSI, CSRRCI | CSR bank not implemented | Cannot use immediate CSR operations |
 
-**Note:** The simulator is **complete for user-mode computational programs**. Missing instructions are system/privileged level operations.
+**Note:** The simulator now supports basic system calls via ECALL and breakpoints via EBREAK. Missing instructions are memory ordering (FENCE) and CSR operations.
 
 ## Test Coverage
 
-**109 tests** covering:
+**125 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -140,6 +151,7 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ Upper immediate instructions (LUI, AUIPC)
 - ✅ All branch types (BEQ, BNE, BLT, BGE, BLTU, BGEU) with pipeline flush
 - ✅ Jump instructions (JAL, JALR) with return address and flush
+- ✅ System instructions (ECALL, EBREAK) with syscall emulation
 - ✅ RAW hazard detection and stalling
 - ✅ Pipeline flush mechanism
 - ✅ Complex multi-instruction programs

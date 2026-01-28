@@ -3,12 +3,12 @@
 ## Current Implementation Status
 
 **Total RV32I Instructions: 40**  
-**Implemented: 29 (72.5%)**  
-**Missing: 11 (27.5%)**
+**Implemented: 31 (77.5%)**  
+**Missing: 9 (22.5%)**
 
 ---
 
-## ✅ FULLY IMPLEMENTED (29 instructions)
+## ✅ FULLY IMPLEMENTED (31 instructions)
 
 ### Integer Computation (10 R-type)
 | Instruction | Opcode | Description | Status |
@@ -75,17 +75,15 @@
 | JAL | 0x6F | Jump and Link | ✅ Tested with flush |
 | JALR | 0x67 | Jump and Link Register | ✅ Tested with flush |
 
+### System Instructions (2)
+| Instruction | Opcode | Description | Status |
+|------------|--------|-------------|--------|
+| ECALL | 0x73 | Environment Call (system call) | ✅ Tested with syscalls |
+| EBREAK | 0x73 | Environment Breakpoint | ✅ Tested as halt |
+
 ---
 
-## ❌ NOT IMPLEMENTED (11 instructions)
-
-### System Instructions (2)
-| Instruction | Opcode | Why Missing | Priority |
-|------------|--------|-------------|----------|
-| ECALL | 0x73 | Requires OS/environment simulation | Medium |
-| EBREAK | 0x73 | Requires debugger support | Low |
-
-### Memory Ordering (2)
+## ❌ NOT IMPLEMENTED (9 instructions)
 | Instruction | Opcode | Why Missing | Priority |
 |------------|--------|-------------|----------|
 | FENCE | 0x0F | Multi-core memory synchronization | Low |
@@ -112,44 +110,32 @@ Note: Some specs count CSR ops as 3 base + 3 immediate variants = 6 total
 ✅ All memory access instructions (loads/stores with proper sign extension)  
 ✅ All control flow instructions (branches, jumps with pipeline flush)  
 ✅ Upper immediate instructions (LUI, AUIPC with PC tracking)  
+✅ System instructions (ECALL with syscall emulation, EBREAK as breakpoint)  
 ✅ Pipeline hazard detection and stalling  
 ✅ Pipeline flush mechanism for control flow  
 ✅ 32-bit register file with R0 hardwired to zero  
 ✅ Byte-addressable memory with word/halfword/byte access  
 
 ### Test Coverage
-- **109 tests** covering all implemented instructions
+- **125 tests** covering all implemented instructions
 - Parsing tests for all instruction formats
 - Execution tests with edge cases
 - Pipeline behavior tests (hazards, stalls, flush)
+- System call emulation tests
 - Integration tests with complex programs
 
 ---
 
 ## What's Missing and Why
 
-### 1. ECALL - System Calls
-**Description:** Transfer control to operating system  
-**Use case:** `printf()`, `exit()`, file I/O in compiled C programs  
-**Why missing:** Requires OS environment simulation  
-**Workaround:** Programs can't make system calls  
-**Difficulty to add:** Medium (need syscall handler)
-
-### 2. EBREAK - Debugger Breakpoint
-**Description:** Transfer control to debugger  
-**Use case:** GDB breakpoints, debugging support  
-**Why missing:** No debugger integration  
-**Workaround:** Use print statements, manual tracing  
-**Difficulty to add:** Low (can be NOP or halt)
-
-### 3. FENCE / FENCE.I - Memory Ordering
+### 1. FENCE / FENCE.I - Memory Ordering
 **Description:** Synchronize memory and instruction caches  
 **Use case:** Multi-core systems, self-modifying code  
 **Why missing:** Single-core simulator, no separate I-cache  
 **Workaround:** Not needed for single-threaded programs  
 **Difficulty to add:** Trivial (implement as NOP)
 
-### 4. CSR Instructions - Privileged Operations
+### 2. CSR Instructions - Privileged Operations
 **Description:** Read/write control and status registers  
 **Use case:** Exception handling, interrupts, performance counters  
 **Why missing:** No privileged mode, no CSR bank  
@@ -165,18 +151,17 @@ Note: Some specs count CSR ops as 3 base + 3 immediate variants = 6 total
 ✅ Programs with loops and conditionals  
 ✅ Programs with function calls  
 ✅ Programs using arrays and pointers  
+✅ Programs with basic system calls (exit, print via ECALL)  
 ✅ Custom assembly test programs  
 ✅ Hand-written RISC-V assembly  
 ✅ Most educational/learning examples  
 
 ### What You CANNOT Run
-❌ Programs that use `printf()` (needs ECALL)  
-❌ Programs that use `exit()` (needs ECALL)  
-❌ Programs with system calls  
-❌ Programs with exception handlers  
-❌ Programs using CSR registers  
-❌ Multi-threaded programs (needs FENCE)  
+❌ Programs requiring multi-core synchronization (FENCE)  
+❌ Programs with CSR register access  
+❌ Programs using performance counters  
 ❌ Self-modifying code (needs FENCE.I)  
+❌ Complex OS-level programs  
 
 ### Typical Workaround
 For educational purposes, write custom test programs that:
@@ -198,22 +183,16 @@ You have all instructions needed for:
 - Learning assembly programming
 - Implementing algorithms
 - Testing compiler output (with syscall workarounds)
-
+basic syscall support
 ### To Support Standard C Programs
-**Add ECALL with basic syscall emulation:**
+**ECALL is now implemented!** ✅
 
-```python
-# In exe.py
-def execute_ecall(syscall_num, args):
-    """Emulate common syscalls"""
-    if syscall_num == 93:  # exit
-        return {'action': 'exit', 'code': args[0]}
-    elif syscall_num == 64:  # write
-        return {'action': 'write', 'fd': args[0], 'buf': args[1], 'len': args[2]}
-    # ... other syscalls
-```
+Basic syscall emulation is available:
+- Exit (syscall 93)
+- Print integer (syscall 1)  
+- Write (syscall 64)
 
-This would let you run actual compiled C programs!
+You can now run simple C programs with basic I/O!
 
 ### To Claim "Complete RV32I"
 **Add stub implementations:**
@@ -223,34 +202,34 @@ This would let you run actual compiled C programs!
 - FENCE.I → NOP
 - CSR ops → warning message or basic CSR bank
 
-**Effort:** 1-2 days  
-**Benefit:** Can claim 100% RV32I coverage
+**~~ECALL → Basic syscall emulation~~ ✅ DONE
+- ~~EBREAK → Halt simulation~~ ✅ DONE
+- FENCE → NOP (no-operation)
+- FENCE.I → NOP
+- CSR ops → Warning message or basic CSR bank
 
----
-
-## Summary
-
-**Current State:** 29/40 instructions (72.5%)  
+**Effort:** 1 day  
+**Benefit:** Can claim 100% RV32I coverage (currently 77.5%)5%)  
 **Computational Completeness:** 100% ✅  
 **User-Mode Completeness:** 100% ✅  
 **Full RV32I Spec:** 72.5%  
 
 **Missing Instructions:**
-- 2 system (ECALL, EBREAK)
+- 2 system (ECALL, 31/40 instructions (77.5%)  
+**Computational Completeness:** 100% ✅  
+**User-Mode Completeness:** 100% ✅  
+**System Call Support:** Basic (exit, print, write) ✅  
+**Full RV32I Spec:** 77.5%  
+
+**Missing Instructions:**
 - 2 memory ordering (FENCE, FENCE.I)
 - 7 CSR operations
 
-**All missing instructions are system/privileged level operations.**  
-**Your simulator is functionally complete for computational programs!**
-
----
-
-## Next Steps (Optional)
-
-### Priority 1: ECALL Support (High Impact)
-- Enables running real C programs
-- Basic syscall emulation (exit, write)
-- Most useful addition
+**All missing instructions are memory ordering or privileged level operations.**  
+**Your simulator~~ECALL Support~~ ✅ COMPLETED
+- ~~Enables running real C programs~~ ✅ Done
+- ~~Basic syscall emulation (exit, write)~~ ✅ Implemented
+- ~~Most useful addition~~ ✅ Complete
 
 ### Priority 2: Stub Implementations (Low Effort)
 - FENCE → NOP

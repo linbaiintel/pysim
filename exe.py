@@ -155,6 +155,54 @@ class EXE:
         return return_address, jump_target
     
     @staticmethod
+    def execute_ecall(registers):
+        """Execute ECALL (Environment Call) instruction
+        
+        Simulates basic system calls based on RISC-V calling convention:
+        - a7 (R17): syscall number
+        - a0 (R10): first argument / return value
+        - a1 (R11): second argument
+        - a2 (R12): third argument
+        
+        Args:
+            registers: RegisterFile object to read syscall arguments
+            
+        Returns:
+            Dictionary with action and result:
+            - {'action': 'exit', 'code': exit_code}
+            - {'action': 'print', 'value': value}
+            - {'action': 'nop'}  # For unimplemented syscalls
+        """
+        # Get syscall number from a7 (R17)
+        syscall_num = registers.read('R17') if registers else 0
+        
+        if syscall_num == 93:  # exit
+            exit_code = registers.read('R10') if registers else 0
+            return {'action': 'exit', 'code': exit_code}
+        elif syscall_num == 1:  # print integer (custom)
+            value = registers.read('R10') if registers else 0
+            return {'action': 'print', 'value': value}
+        elif syscall_num == 64:  # write (simplified)
+            fd = registers.read('R10') if registers else 1
+            buf_addr = registers.read('R11') if registers else 0
+            count = registers.read('R12') if registers else 0
+            return {'action': 'write', 'fd': fd, 'addr': buf_addr, 'count': count}
+        else:
+            # Unknown syscall - treat as NOP
+            return {'action': 'nop', 'syscall': syscall_num}
+    
+    @staticmethod
+    def execute_ebreak():
+        """Execute EBREAK (Environment Breakpoint) instruction
+        
+        Signals a breakpoint for debugger. In our simulator, we halt execution.
+        
+        Returns:
+            Dictionary with action: {'action': 'break'}
+        """
+        return {'action': 'break'}
+    
+    @staticmethod
     def evaluate_branch(operation, val1, val2):
         """Evaluate branch condition
         
@@ -218,6 +266,15 @@ class EXE:
             
         elif op == 'AUIPC':
             result = EXE.execute_auipc(instruction.immediate, pc)
+        
+        # System instructions
+        elif op == 'ECALL':
+            # ECALL needs access to registers - return special marker
+            result = {'type': 'ecall'}
+        
+        elif op == 'EBREAK':
+            # EBREAK signals breakpoint
+            result = {'type': 'ebreak'}
             
         # Branch instructions
         elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:

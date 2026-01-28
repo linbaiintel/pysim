@@ -63,6 +63,12 @@ class Instruction:
                 self.has_immediate = True
                 self.src_regs = []
                 
+        # System instructions (ECALL, EBREAK)
+        elif text_upper in ['ECALL', 'EBREAK']:
+            self.operation = text_upper
+            self.dest_reg = None  # System instructions don't write to register
+            self.src_regs = []
+            
         # Branch instructions
         elif text_upper.startswith('B'):
             match = re.search(r'(\w+)\s+(\w+),\s*(\w+),\s*(-?\d+)', self.text, re.IGNORECASE)

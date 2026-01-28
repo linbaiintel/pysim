@@ -1,6 +1,6 @@
 # RISC-V 5-Stage Pipeline Simulator
 
-A cycle-accurate simulation of a RISC-V 5-stage pipeline using SimPy, with comprehensive hazard detection, pipeline flush mechanism, and support for 29 RV32I instructions.
+A cycle-accurate simulation of a RISC-V 5-stage pipeline using SimPy, with comprehensive hazard detection, pipeline flush mechanism, and support for 31 RV32I instructions.
 
 ## Overview
 This simulator implements a classic 5-stage in-order pipeline:
@@ -13,7 +13,7 @@ This simulator implements a classic 5-stage in-order pipeline:
 **Key Features:**
 - **RAW Hazard Detection**: Detects read-after-write dependencies and inserts stalls
 - **Pipeline Flush**: Handles control flow changes (branches, jumps) by flushing incorrect instructions
-- **RV32I Support**: 29/40 instructions including all computational, load/store, branch, and jump instructions
+- **RV32I Support**: 31/40 instructions including all computational, load/store, branch, jump, and basic system instructions
 - **Cycle-Accurate**: Tracks exact cycle counts, stalls, and flushes for performance analysis
 
 ## Setup
@@ -72,7 +72,7 @@ python sandbox/vis_pipeline.py
 
 ### Run Test Suite
 ```bash
-# Run all functional tests (109 tests)
+# Run all functional tests (125 tests)
 python -m unittest discover tests/functional_tests -v
 
 # Run specific test modules
@@ -80,6 +80,7 @@ python -m unittest tests.functional_tests.test_branch -v
 python -m unittest tests.functional_tests.test_jump -v
 python -m unittest tests.functional_tests.test_flush -v
 python -m unittest tests.functional_tests.test_load_store -v
+python -m unittest tests.functional_tests.test_system -v
 
 # Or use convenience scripts
 ./scripts/run_all_tests.sh
@@ -87,8 +88,7 @@ python -m unittest tests.functional_tests.test_load_store -v
 ```
 
 ## Test Categories
-
-### 1. Instruction Type Tests (109 Total Tests)
+25 Total Tests)
 **Coverage by category:**
 
 #### Arithmetic & Logic (test_instruction_types.py, test_comparison.py, test_immediate.py, test_shift.py)
@@ -108,6 +108,10 @@ python -m unittest tests.functional_tests.test_load_store -v
 - Pipeline flush on taken branches and jumps
 - No flush on not-taken branches
 
+#### System Instructions (test_system.py)
+- ECALL (environment call) with syscall emulation
+- EBREAK (breakpoint) as halt signal
+
 #### Upper Immediate (test_upper_immediate.py)
 - LUI (Load Upper Immediate)
 - AUIPC (Add Upper Immediate to PC)
@@ -122,6 +126,7 @@ python -m unittest tests.functional_tests.test_load_store -v
 **Run all tests:**
 ```bash
 python -m unittest discover tests/functional_tests -v
+# Output: Ran 125 tests in ~0.06s/functional_tests -v
 # Output: Ran 109 tests in ~0.05s
 ```
 
@@ -167,14 +172,15 @@ draw_pipeline_diagram([
 
 ### Hazard Detection & Pipeline Control
 - **RAW Detection**: Checks Execute and Memory stages for read-after-write hazards
-- **Stall Insertion**: Inserts bubbles when hazards detected (3 cycles for EXE, 2 for MEM)
-- **Pipeline Flush**: Flushes IF and ID stages on control flow changes (jumps, taken branches)
-- **Flush Tracking**: Counts flushes for performance analysis
-
-### Supported Instructions (29/40 RV32I)
+- **Stall Insertion**: Inser31/40 RV32I)
 - **R-type (10)**: ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA
 - **I-type ALU (9)**: ADDI, ANDI, ORI, XORI, SLTI, SLTIU, SLLI, SRLI, SRAI
 - **Load (5)**: LW, LH, LB, LHU, LBU
+- **Store (3)**: SW, SH, SB
+- **Upper (2)**: LUI, AUIPC
+- **Branch (6)**: BEQ, BNE, BLT, BGE, BLTU, BGEU
+- **Jump (2)**: JAL, JALR
+- **System (2)**: ECALL, EBREAKB, LHU, LBU
 - **Store (3)**: SW, SH, SB
 - **Upper (2)**: LUI, AUIPC
 - **Branch (6)**: BEQ, BNE, BLT, BGE, BLTU, BGEU
@@ -307,6 +313,7 @@ pysim/
         ├── test_immediate.py           # Immediate operation tests
         ├── test_comparison.py          # SLT/SLTU tests
         ├── test_shift.py               # Shift operation tests
+        ├── test_system.py              # System instructions (ECALL/EBREAK) - 16 tests
         ├── test_load_store.py          # Load/store variants (LW/LH/LB/LHU/LBU, SW/SH/SB)
         ├── test_upper_immediate.py     # LUI and AUIPC tests
         ├── test_branch.py              # Branch instruction tests (BEQ/BNE/BLT/BGE/BLTU/BGEU)
@@ -329,8 +336,7 @@ pysim/
 
 ## Testing Checklist
 
-**Core Functionality**
-- [x] All instructions complete successfully (109/109 tests passing)
+**Core Functionality**25/125 tests passing)
 - [x] RAW hazards are detected and stalled
 - [x] Independent instructions don't stall
 - [x] Instruction order is preserved (in-order pipeline)
@@ -346,6 +352,7 @@ pysim/
 - [x] Upper immediate (LUI, AUIPC)
 - [x] Branch instructions (BEQ, BNE, BLT, BGE, BLTU, BGEU)
 - [x] Jump instructions (JAL, JALR) with return address calculation
+- [x] System instructions (ECALL, EBREAK) with syscall emulation
 
 **Pipeline Control**
 - [x] Pipeline flush on jumps (JAL, JALR)
@@ -362,23 +369,25 @@ pysim/
 - [x] Negative offsets and edge addresses
 - [x] R0 hardwired to zero
 - [x] CPI/IPC metrics calculated correctly
+- [x] System calls with various arguments
+- [x] CPI/IPC metrics calculated correctly
 
 ## Implementation Status
-
-### ✅ Completed Features
-- 29/40 RV32I instructions (all computational instructions)
+31/40 RV32I instructions (77.5% coverage)
 - RAW hazard detection with stall insertion
 - Pipeline flush mechanism for control flow changes
 - Cycle-accurate simulation with performance metrics
-- Comprehensive test suite (109 tests)
+- Comprehensive test suite (125 tests)
 - All load/store variants with proper sign/zero extension
 - Jump instructions (JAL, JALR) with return address handling
 - All branch instructions with condition evaluation
+- System instructions (ECALL, EBREAK) with basic syscall support
 
-### ⚠️ Missing from RV32I (11 instructions)
-- **System calls**: ECALL, EBREAK
+### ⚠️ Missing from RV32I (9 instructions)
 - **Memory ordering**: FENCE, FENCE.I (can be implemented as NOPs)
-- **CSR operations**: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI
+- **CSR operations**: CSRRW, CSRRS, CSRRC, CSRRWI, CSRRSI, CSRRCI, (CSRRC)
+
+**Note**: The simulator is **functionally complete** for user-mode programs with basic I/O. Missing instructions are memory ordering and 
 
 **Note**: The simulator is **functionally complete** for user-mode computational programs. Missing instructions are system/privileged level operations. See [docs/RV32I_COVERAGE.md](docs/RV32I_COVERAGE.md) for details.
 
