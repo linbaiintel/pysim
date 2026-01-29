@@ -21,6 +21,7 @@ This directory contains comprehensive documentation for the RISC-V 5-Stage Pipel
 - **[TRAP_MECHANISM.md](TRAP_MECHANISM.md)** - Trap and interrupt handling
 - **[INTERRUPT_LOGIC.md](INTERRUPT_LOGIC.md)** - Interrupt enable/pending logic
 - **[PIPELINE_INTERRUPTS.md](../PIPELINE_INTERRUPTS.md)** - Pipeline interrupt integration
+- **[CLINT.md](CLINT.md)** - Core Local Interruptor (timer/software interrupts)
 
 ### 🧪 Testing
 - **[RISCV_TESTS_GUIDE.md](RISCV_TESTS_GUIDE.md)** - Guide for official RISC-V test suite

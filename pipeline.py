@@ -7,6 +7,7 @@ from instruction import Instruction
 from csr import CSRBank
 from trap import TrapController
 from interrupt import InterruptController
+from clint import CLINT
 
 
 class PipelineStage:
@@ -275,6 +276,10 @@ class Pipeline:
         self.trap_controller = TrapController(self.csr_bank)
         self.interrupt_controller = self.trap_controller.interrupt_controller
         
+        # Create CLINT (Core Local Interruptor) for timer interrupts
+        # time_scale=1 means increment mtime every cycle (can be adjusted for realistic timing)
+        self.clint = CLINT(self.interrupt_controller, time_scale=1)
+        
         # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
         self.decode = DecodeStage(env, self.register_file)
@@ -385,6 +390,10 @@ class Pipeline:
             
             # Now process the instruction
             processed = yield self.env.process(stage.process(instruction))
+            
+            # Tick CLINT after each stage completes (increment timer)
+            if stage_name:
+                self.clint.tick(1)
             
             # After Execute stage, check if we need to trigger flush
             if stage_name == 'execute' and not instruction.is_bubble:

@@ -72,7 +72,7 @@ python sandbox/vis_pipeline.py
 
 ### Run Test Suite
 ```bash
-# Run all functional tests (248 tests)
+# Run all functional tests (276 tests)
 python -m unittest discover tests/functional_tests -v
 
 # Run specific test modules
@@ -139,7 +139,7 @@ python -m unittest tests.functional_tests.test_csr -v
 **Run all tests:**
 ```bash
 python -m unittest discover tests/functional_tests -v
-# Output: Ran 248 tests in ~0.05s
+# Output: Ran 276 tests in ~0.08s
 ```
 
 ## Pipeline Visualization
@@ -348,7 +348,7 @@ pysim/
 
 ## Testing Checklist
 
-**Core Functionality** (248/248 tests passing)
+**Core Functionality** (276/276 tests passing)
 - [x] RAW hazards are detected and stalled
 - [x] Independent instructions don't stall
 - [x] Instruction order is preserved (in-order pipeline)
@@ -357,6 +357,8 @@ pysim/
 - [x] Pipeline state is tracked correctly
 - [x] Interrupts checked before each fetch
 - [x] Trap handling with pipeline flush
+- [x] CLINT timer/software interrupts
+- [x] FreeRTOS-compatible periodic ticks
 
 **Instruction Coverage** (40/40 = 100%)
 - [x] R-type operations (ADD, SUB, AND, OR, XOR, SLT, SLTU, SLL, SRL, SRA)
@@ -396,7 +398,7 @@ pysim/
 - RAW hazard detection with stall insertion
 - Full CSR bank with standard RISC-V addresses
 - Cycle-accurate simulation with performance metrics
-- Comprehensive test suite (248 tests)
+- Comprehensive test suite (276 tests)
 - All load/store variants with proper sign/zero extension
 - Jump instructions (JAL, JALR) with return address handling
 - All branch instructions with condition evaluation
@@ -406,6 +408,8 @@ pysim/
 - Full trap/interrupt mechanism with exception and interrupt handling
 - Advanced interrupt enable/pending logic with masking and priority
 - Pipeline interrupt integration with cycle-accurate delivery
+- CLINT (Core Local Interruptor) for timer/software interrupts
+- FreeRTOS-compatible periodic timer tick support
 
 ### \ud83c\udf89 RV32I Implementation: COMPLETE
 
