@@ -1,3 +1,6 @@
 [submodule "3rd_party/riscv-tests"]
 	path = 3rd_party/riscv-tests
 	url = https://github.com/riscv/riscv-tests.git
+[submodule "3rd_party/FreeRTOS-Kernel"]
+	path = 3rd_party/FreeRTOS-Kernel
+	url = https://github.com/FreeRTOS/FreeRTOS-Kernel.git
