@@ -203,6 +203,62 @@ class EXE:
         return {'action': 'break'}
     
     @staticmethod
+    def execute_mret(csr_bank):
+        """Execute MRET (Machine Return) instruction
+        
+        Returns from machine-mode trap handler by:
+        1. Restoring PC from mepc (0x341)
+        2. Restoring interrupt enable: mstatus.MPIE -> mstatus.MIE
+        3. Setting mstatus.MPIE to 1
+        4. Restoring privilege mode from mstatus.MPP
+        5. Setting mstatus.MPP to User mode (0)
+        
+        mstatus bit layout (relevant bits):
+        - Bit 3: MIE (Machine Interrupt Enable)
+        - Bit 7: MPIE (Machine Previous Interrupt Enable)
+        - Bits 11-12: MPP (Machine Previous Privilege mode: 0=User, 3=Machine)
+        
+        Args:
+            csr_bank: CSRBank instance to access mepc and mstatus
+            
+        Returns:
+            Dictionary with new PC: {'type': 'mret', 'new_pc': <mepc_value>}
+        """
+        if csr_bank is None:
+            # Should not happen in normal operation
+            return {'type': 'mret', 'new_pc': 0}
+        
+        # Read return address from mepc
+        new_pc = csr_bank.read(0x341)  # mepc
+        
+        # Read current mstatus
+        mstatus = csr_bank.read(0x300)
+        
+        # Extract MPIE (bit 7)
+        mpie = (mstatus >> 7) & 0x1
+        
+        # Modify mstatus:
+        # 1. MIE (bit 3) = MPIE (bit 7)
+        # 2. MPIE (bit 7) = 1
+        # 3. MPP (bits 11-12) = 0 (User mode)
+        
+        # Clear MIE, MPIE, and MPP fields
+        mstatus &= ~((1 << 3) | (1 << 7) | (0x3 << 11))
+        
+        # Set MIE = MPIE
+        mstatus |= (mpie << 3)
+        
+        # Set MPIE = 1
+        mstatus |= (1 << 7)
+        
+        # MPP already cleared to 0 (User mode)
+        
+        # Write back modified mstatus
+        csr_bank.write(0x300, mstatus)
+        
+        return {'type': 'mret', 'new_pc': new_pc}
+    
+    @staticmethod
     def execute_csr_read_write(csr_bank, csr_addr, value):
         """Execute CSRRW - Atomic Read/Write CSR
         
@@ -323,6 +379,10 @@ class EXE:
         elif op == 'EBREAK':
             # EBREAK signals breakpoint
             result = {'type': 'ebreak'}
+        
+        elif op == 'MRET':
+            # MRET needs access to CSR bank - return special marker
+            result = {'type': 'mret'}
         
         # Memory ordering instructions
         elif op in ['FENCE', 'FENCE.I']:

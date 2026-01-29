@@ -1,10 +1,10 @@
 # RISC-V Instruction Set - Implementation Status
 
-This document describes the RISC-V instructions supported by this simulator. **Status: 40/40 RV32I instructions implemented (100% COMPLETE)** ✅
+This document describes the RISC-V instructions supported by this simulator. **Status: 41 instructions implemented (40/40 RV32I + MRET)** ✅
 
 For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md).
 
-## Implemented Instructions (40/40 - COMPLETE)
+## Implemented Instructions (41 total: 40 RV32I + 1 Privileged)
 
 ### R-Type (Register-Register) Operations ✅ 10/10
 | Instruction | Format | Description | Example |
@@ -86,16 +86,18 @@ For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md)
 - **FENCE.I**: Implemented as NOP (no separate instruction cache)
 - Both instructions complete in one cycle without side effects
 
-### System Instructions ✅ 2/2
+### System Instructions ✅ 3/3
 | Instruction | Format | Description | Example |
 |------------|--------|-------------|---------|
 | ECALL | `ECALL` | Environment Call (system call) | `ECALL` → Invoke system call based on R17 |
 | EBREAK | `EBREAK` | Environment Breakpoint | `EBREAK` → Trigger breakpoint/halt execution |
+| MRET | `MRET` | Machine Return (return from trap) | `MRET` → Restore PC from mepc, update mstatus |
 
 **Implementation details:**
 - **ECALL**: Supports basic syscalls (exit=93, print=1, write=64) via RISC-V calling convention
 - **EBREAK**: Halts execution and signals breakpoint condition
-- Both instructions don't write to destination registers
+- **MRET**: Returns from machine-mode trap by restoring PC from mepc CSR (0x341), restoring interrupt enable (MPIE→MIE), and clearing privilege bits
+- System instructions don't write to destination registers
 
 ### Control and Status Register (CSR) Instructions ✅ 7/7
 | Instruction | Format | Description | Example |
@@ -154,7 +156,7 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ 19 Arithmetic/Logic operations (100%)
 - ✅ 8 Memory access operations (100%)
 - ✅ 8 Control flow operations (100%)
-- ✅ 5 System/Privileged operations (100%)
+- ✅ 6 System/Privileged operations (ECALL, EBREAK, MRET + 3 CSR types)
 
 **What this means:**
 - Can execute any standard RV32I program
@@ -166,7 +168,7 @@ All operations are performed on 32-bit values with proper masking.
 
 ## Test Coverage
 
-**166 tests** covering:
+**179 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -176,7 +178,7 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ Upper immediate instructions (LUI, AUIPC)
 - ✅ All branch types (BEQ, BNE, BLT, BGE, BLTU, BGEU) with pipeline flush
 - ✅ Jump instructions (JAL, JALR) with return address and flush
-- ✅ System instructions (ECALL, EBREAK) with syscall emulation
+- ✅ System instructions (ECALL, EBREAK, MRET) with syscall emulation and trap return
 - ✅ Memory ordering instructions (FENCE, FENCE.I) as NOPs
 - ✅ CSR instructions (all 7 variants) with full CSR bank
 - ✅ CSR read-only protection and atomic operations

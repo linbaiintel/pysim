@@ -348,7 +348,7 @@ pysim/
 
 ## Testing Checklist
 
-**Core Functionality** (166/166 tests passing)
+**Core Functionality** (179/179 tests passing)
 - [x] RAW hazards are detected and stalled
 - [x] Independent instructions don't stall
 - [x] Instruction order is preserved (in-order pipeline)
@@ -394,7 +394,7 @@ pysim/
 - RAW hazard detection with stall insertion
 - Full CSR bank with standard RISC-V addresses
 - Cycle-accurate simulation with performance metrics
-- Comprehensive test suite (166 tests)
+- Comprehensive test suite (179 tests)
 - All load/store variants with proper sign/zero extension
 - Jump instructions (JAL, JALR) with return address handling
 - All branch instructions with condition evaluation

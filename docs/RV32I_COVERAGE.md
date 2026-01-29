@@ -189,6 +189,26 @@ The simulator now has 100% RV32I coverage! Future enhancements could include:
 
 ---
 
+## Additional Privileged Instructions (Beyond RV32I)
+
+While RV32I is 100% complete, the simulator also supports additional privileged instructions useful for operating system support:
+
+### Trap/Exception Instructions (1)
+| Instruction | Opcode | Description | Status |
+|------------|--------|-------------|--------|
+| MRET | 0x73 | Machine Return from Trap | ✅ Full implementation |
+
+**MRET Implementation:**
+- Restores PC from mepc CSR (0x341)
+- Restores interrupt enable: mstatus.MPIE → mstatus.MIE
+- Sets mstatus.MPIE to 1
+- Restores privilege mode from mstatus.MPP
+- Clears mstatus.MPP to User mode (0)
+- Essential for FreeRTOS and other RTOS support
+- 13 comprehensive tests covering all CSR state transitions
+
+---
+
 ## Future Enhancements (Optional)
 
 The simulator now has complete RV32I coverage! Possible next steps:
@@ -217,7 +237,8 @@ The simulator now has complete RV32I coverage! Possible next steps:
 ## Summary
 
 **🎉 100% RV32I COMPLETE (40/40 instructions)** ✅  
-**📊 166 comprehensive tests passing** ✅  
-**✅ Ready for any RV32I program**
+**📊 179 comprehensive tests passing** ✅  
+**✅ Ready for any RV32I program**  
+**🔒 Plus MRET for privileged/RTOS support**
 
-Congratulations on achieving complete RISC-V RV32I implementation!
+Congratulations on achieving complete RISC-V RV32I implementation plus essential privileged instructions!
