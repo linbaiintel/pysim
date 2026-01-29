@@ -161,14 +161,80 @@ All operations are performed on 32-bit values with proper masking.
 **What this means:**
 - Can execute any standard RV32I program
 - Full computational completeness
-- Basic system call support via ECALL
+- Complete trap/interrupt mechanism for exception and interrupt handling
+- System call support via ECALL with trap entry
 - Performance counter access via CSR instructions
 - Memory ordering support (FENCE/FENCE.I)
-- Ready for compiler-generated code
+- Ready for compiler-generated code and RTOS support
+
+## Trap/Interrupt Mechanism
+
+The simulator now includes a complete trap and interrupt handling system:
+
+### Exception Handling
+- **Synchronous exceptions**: ECALL, EBREAK, illegal instruction, misaligned access
+- **Trap entry**: Automatically saves PC to mepc, updates mstatus (MIE→MPIE, MPP), sets mcause/mtval
+- **Trap exit**: MRET restores PC from mepc, restores interrupt enable and privilege mode
+
+### Interrupt Support
+- **Interrupt types**: Software, Timer, External
+- **Interrupt delivery**: Priority-based delivery when globally enabled (mstatus.MIE)
+- **Individual enable**: Per-interrupt enable bits in mie CSR
+- **Pending tracking**: mip CSR tracks pending interrupts
+- **Vectoring modes**: Direct (single handler) and Vectored (per-interrupt vectors)
+
+### CSR State Management
+- **mepc (0x341)**: Exception program counter (return address)
+- **mstatus (0x300)**: Status register with MIE, MPIE, MPP fields
+- **mcause (0x342)**: Trap cause (exception code or interrupt number with MSB)
+- **mtval (0x343)**: Trap value (faulting address or instruction)
+- **mtvec (0x305)**: Trap handler base address with mode bits
+- **mie (0x304)**: Interrupt enable bits for software/timer/external
+- **mip (0x344)**: Interrupt pending bits
+
+### Exception Codes
+| Code | Name | Description |
+|------|------|-------------|
+| 0 | Instruction misaligned | PC not aligned |
+| 2 | Illegal instruction | Invalid opcode or encoding |
+| 3 | Breakpoint | EBREAK instruction |
+| 8 | Environment call (U-mode) | ECALL from User mode |
+| 11 | Environment call (M-mode) | ECALL from Machine mode |
+
+### Usage Example
+```python
+from trap import TrapController
+from csr import CSRBank
+
+csr = CSRBank()
+trap = TrapController(csr)
+
+# Set trap handler address
+csr.write(0x305, 0x80000000)  # mtvec
+
+# Trigger ECALL exception
+result = trap.ecall(pc=0x1000)
+# Returns: {'type': 'exception', 'handler_pc': 0x80000000, ...}
+
+# Enable interrupts
+mstatus = csr.read(0x300)
+csr.write(0x300, mstatus | (1 << 3))  # Set MIE
+
+# Enable timer interrupt
+mie = csr.read(0x304)
+csr.write(0x304, mie | (1 << 7))  # Enable MTIE
+
+# Set timer interrupt pending
+trap.set_interrupt_pending('timer')
+
+# Check for interrupts (called at instruction fetch)
+result = trap.check_pending_interrupts(next_pc=0x2000)
+# Delivers interrupt if enabled
+```
 
 ## Test Coverage
 
-**179 tests** covering:
+**205 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -183,6 +249,12 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ CSR instructions (all 7 variants) with full CSR bank
 - ✅ CSR read-only protection and atomic operations
 - ✅ CSR counters and machine-mode registers
+- ✅ Trap/interrupt mechanism (26 tests)
+  - Exception handling (ECALL, EBREAK, illegal instruction)
+  - Interrupt delivery (software, timer, external)
+  - CSR state management during trap entry/exit
+  - Interrupt priority and pending tracking
+  - Direct and vectored trap modes
 - ✅ RAW hazard detection and stalling
 - ✅ Pipeline flush mechanism
 - ✅ Complex multi-instruction programs
