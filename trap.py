@@ -1,5 +1,7 @@
 """Trap and Interrupt Mechanism for RISC-V simulator"""
 
+from interrupt import InterruptController
+
 
 class TrapController:
     """Handles trap entry and interrupt delivery for RISC-V
@@ -39,7 +41,8 @@ class TrapController:
             csr_bank: CSRBank instance for accessing/modifying CSRs
         """
         self.csr_bank = csr_bank
-        self.pending_interrupts = set()  # Set of pending interrupt codes
+        self.pending_interrupts = set()  # Set of pending interrupt codes (legacy)
+        self.interrupt_controller = InterruptController(csr_bank)  # New interrupt logic
     
     def trigger_exception(self, exception_code, pc, trap_value=0):
         """Trigger a synchronous exception

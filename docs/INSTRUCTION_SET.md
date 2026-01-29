@@ -234,7 +234,7 @@ result = trap.check_pending_interrupts(next_pc=0x2000)
 
 ## Test Coverage
 
-**205 tests** covering:
+**240 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -255,6 +255,12 @@ result = trap.check_pending_interrupts(next_pc=0x2000)
   - CSR state management during trap entry/exit
   - Interrupt priority and pending tracking
   - Direct and vectored trap modes
+- ✅ Interrupt enable/pending logic (35 tests)
+  - Interrupt masking and priority resolution
+  - Edge and level-triggered interrupts
+  - Deliverable interrupt calculation
+  - Interrupt source simulation
+  - Individual and global interrupt enable
 - ✅ RAW hazard detection and stalling
 - ✅ Pipeline flush mechanism
 - ✅ Complex multi-instruction programs

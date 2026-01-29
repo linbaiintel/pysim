@@ -72,7 +72,7 @@ python sandbox/vis_pipeline.py
 
 ### Run Test Suite
 ```bash
-# Run all functional tests (205 tests)
+# Run all functional tests (240 tests)
 python -m unittest discover tests/functional_tests -v
 
 # Run specific test modules
@@ -139,7 +139,7 @@ python -m unittest tests.functional_tests.test_csr -v
 **Run all tests:**
 ```bash
 python -m unittest discover tests/functional_tests -v
-# Output: Ran 205 tests in ~0.07s
+# Output: Ran 240 tests in ~0.05s
 ```
 
 ## Pipeline Visualization
@@ -348,7 +348,7 @@ pysim/
 
 ## Testing Checklist
 
-**Core Functionality** (205/205 tests passing)
+**Core Functionality** (240/240 tests passing)
 - [x] RAW hazards are detected and stalled
 - [x] Independent instructions don't stall
 - [x] Instruction order is preserved (in-order pipeline)
@@ -394,7 +394,7 @@ pysim/
 - RAW hazard detection with stall insertion
 - Full CSR bank with standard RISC-V addresses
 - Cycle-accurate simulation with performance metrics
-- Comprehensive test suite (205 tests)
+- Comprehensive test suite (240 tests)
 - All load/store variants with proper sign/zero extension
 - Jump instructions (JAL, JALR) with return address handling
 - All branch instructions with condition evaluation
@@ -402,6 +402,7 @@ pysim/
 - Memory ordering (FENCE, FENCE.I) implemented as NOPs
 - Complete CSR support with atomic read-modify-write operations
 - Full trap/interrupt mechanism with exception and interrupt handling
+- Advanced interrupt enable/pending logic with masking and priority
 
 ### \ud83c\udf89 RV32I Implementation: COMPLETE
 
