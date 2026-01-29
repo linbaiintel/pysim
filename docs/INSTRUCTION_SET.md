@@ -1,10 +1,10 @@
 # RISC-V Instruction Set - Implementation Status
 
-This document describes the RISC-V instructions supported by this simulator. **Status: 33/40 RV32I instructions implemented (82.5%)**
+This document describes the RISC-V instructions supported by this simulator. **Status: 40/40 RV32I instructions implemented (100% COMPLETE)** ✅
 
 For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md).
 
-## Currently Implemented Instructions (33/40)
+## Implemented Instructions (40/40 - COMPLETE)
 
 ### R-Type (Register-Register) Operations ✅ 10/10
 | Instruction | Format | Description | Example |
@@ -97,6 +97,25 @@ For complete RV32I coverage analysis, see [RV32I_COVERAGE.md](RV32I_COVERAGE.md)
 - **EBREAK**: Halts execution and signals breakpoint condition
 - Both instructions don't write to destination registers
 
+### Control and Status Register (CSR) Instructions ✅ 7/7
+| Instruction | Format | Description | Example |
+|------------|--------|-------------|---------||
+| CSRRW | `CSRRW rd, csr, rs1` | CSR Read/Write | `CSRRW R1, 0x300, R2` → R1 = CSR[0x300], CSR[0x300] = R2 |
+| CSRRS | `CSRRS rd, csr, rs1` | CSR Read and Set Bits | `CSRRS R1, 0x304, R2` → R1 = CSR[0x304], CSR[0x304] |= R2 |
+| CSRRC | `CSRRC rd, csr, rs1` | CSR Read and Clear Bits | `CSRRC R1, 0x340, R2` → R1 = CSR[0x340], CSR[0x340] &= ~R2 |
+| CSRRWI | `CSRRWI rd, csr, uimm` | CSR Read/Write Immediate | `CSRRWI R1, 0x300, 15` → R1 = CSR[0x300], CSR[0x300] = 15 |
+| CSRRSI | `CSRRSI rd, csr, uimm` | CSR Read and Set Bits Immediate | `CSRRSI R1, 0x304, 10` → R1 = CSR[0x304], CSR[0x304] |= 10 |
+| CSRRCI | `CSRRCI rd, csr, uimm` | CSR Read and Clear Bits Immediate | `CSRRCI R1, 0x340, 7` → R1 = CSR[0x340], CSR[0x340] &= ~7 |
+
+**Implementation details:**
+- **CSR Bank**: Full CSR register bank with standard RISC-V addresses
+- **Supported CSRs**: Machine status (mstatus), ISA info (misa), counters (cycle, instret, mcycle, minstret), trap handling (mepc, mcause, mtval), and more
+- **Read-only CSRs**: Vendor ID, architecture ID, implementation ID (0xF00-0xFFF range)
+- **Atomic operations**: All CSR ops are atomic read-modify-write
+- **Zero optimization**: CSRRS/CSRRC with rs1=R0 or uimm=0 only reads (doesn't modify)
+- **CSR addresses**: 12-bit immediate (0x000-0xFFF)
+- **Immediate values**: 5-bit unsigned immediate (0-31) for immediate variants
+
 ## Instruction Format Details
 
 ### Immediate Value Formats
@@ -128,19 +147,26 @@ All operations are performed on 32-bit values with proper masking.
 - **Signed:** `SLT`, `SLTI`, `BLT`, `BGE` - uses two's complement comparison
 - **Unsigned:** `SLTU`, `SLTIU`, `BLTU`, `BGEU` - uses unsigned comparison
 
-## Not Yet Implemented (7/40 RV32I)
+## 🎉 RV32I Implementation Complete
 
-### Control and Status Registers (CSR) ❌ 0/7
-| Instruction | Why Missing | Impact |
-|------------|-------------|--------|
-| CSRRW, CSRRS, CSRRC | CSR bank not implemented | Cannot access performance counters |
-| CSRRWI, CSRRSI, CSRRCI | CSR bank not implemented | Cannot use immediate CSR operations |
+**All 40 RV32I base instructions are now fully implemented and tested!** ✅
 
-**Note:** The simulator now supports basic system calls via ECALL, breakpoints via EBREAK, and memory ordering instructions (FENCE, FENCE.I). Only CSR operations remain unimplemented.
+- ✅ 19 Arithmetic/Logic operations (100%)
+- ✅ 8 Memory access operations (100%)
+- ✅ 8 Control flow operations (100%)
+- ✅ 5 System/Privileged operations (100%)
+
+**What this means:**
+- Can execute any standard RV32I program
+- Full computational completeness
+- Basic system call support via ECALL
+- Performance counter access via CSR instructions
+- Memory ordering support (FENCE/FENCE.I)
+- Ready for compiler-generated code
 
 ## Test Coverage
 
-**139 tests** covering:
+**166 tests** covering:
 - ✅ All R-type register operations (10 instructions)
 - ✅ All I-type immediate operations (9 instructions)
 - ✅ All shift operations (6 variants)
@@ -150,7 +176,12 @@ All operations are performed on 32-bit values with proper masking.
 - ✅ Upper immediate instructions (LUI, AUIPC)
 - ✅ All branch types (BEQ, BNE, BLT, BGE, BLTU, BGEU) with pipeline flush
 - ✅ Jump instructions (JAL, JALR) with return address and flush
-- ✅ System instructions (ECALL, EBREAK) with syscall emulation- ✅ Memory ordering instructions (FENCE, FENCE.I) as NOPs- ✅ RAW hazard detection and stalling
+- ✅ System instructions (ECALL, EBREAK) with syscall emulation
+- ✅ Memory ordering instructions (FENCE, FENCE.I) as NOPs
+- ✅ CSR instructions (all 7 variants) with full CSR bank
+- ✅ CSR read-only protection and atomic operations
+- ✅ CSR counters and machine-mode registers
+- ✅ RAW hazard detection and stalling
 - ✅ Pipeline flush mechanism
 - ✅ Complex multi-instruction programs
 
@@ -174,7 +205,7 @@ ANDI R4, R3, 0xF0F0   # R4 = 0xFF0F & 0xF0F0 = 0xF000
 - [RV32I_COVERAGE.md](RV32I_COVERAGE.md) - Comprehensive RV32I implementation analysis
 - [JAL_JALR_IMPLEMENTATION.md](JAL_JALR_IMPLEMENTATION.md) - Jump instruction details
 - [PIPELINE_FLUSH.md](PIPELINE_FLUSH.md) - Pipeline flush mechanism
-- [tests/functional_tests/](../tests/functional_tests/) - Comprehensive test suite (109 tests)
+- [tests/functional_tests/](../tests/functional_tests/) - Comprehensive test suite (166 tests)
 ```assembly
 ADDI R1, R0, 100      # R1 = 100
 SLTI R2, R1, 200      # R2 = 1 (100 < 200)
