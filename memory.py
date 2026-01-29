@@ -10,16 +10,20 @@ class Memory:
     - Little-endian byte ordering
     - Sign extension for signed loads (LB, LH)
     """
-    def __init__(self, size=1*1024*1024, base_address=0):
+    def __init__(self, size=1*1024*1024, base_address=0, uart=None, clint=None):
         """Initialize memory
         
         Args:
             size: Memory size in bytes (default 1MB)
             base_address: Base address offset (default 0)
+            uart: Optional UART peripheral for memory-mapped I/O
+            clint: Optional CLINT peripheral for memory-mapped timer
         """
         self.size = size
         self.base_address = base_address
         self.data = bytearray(size)
+        self.uart = uart
+        self.clint = clint
     
     def _check_address(self, address, access_size=1):
         """Validate memory address and alignment
@@ -117,6 +121,16 @@ class Memory:
         Returns:
             Word value (32 bits)
         """
+        # Check for UART memory-mapped I/O
+        if self.uart and self.uart.is_uart_address(address):
+            value = self.uart.read_register(address)
+            return value if value is not None else 0
+        
+        # Check for CLINT memory-mapped I/O
+        if self.clint and self.clint.MSIP_BASE <= address < self.clint.MTIME_BASE + 8:
+            value = self.clint.read_register(address)
+            return value if value is not None else 0
+        
         self._check_address(address, 4)
         offset = address - self.base_address
         
@@ -134,6 +148,16 @@ class Memory:
             address: Memory address (must be 4-byte aligned)
             value: Word value to write (only lower 32 bits used)
         """
+        # Check for UART memory-mapped I/O
+        if self.uart and self.uart.is_uart_address(address):
+            self.uart.write_register(address, value)
+            return
+        
+        # Check for CLINT memory-mapped I/O
+        if self.clint and self.clint.MSIP_BASE <= address < self.clint.MTIME_BASE + 8:
+            self.clint.write_register(address, value)
+            return
+        
         self._check_address(address, 4)
         offset = address - self.base_address
         

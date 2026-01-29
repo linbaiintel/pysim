@@ -8,6 +8,7 @@ from csr import CSRBank
 from trap import TrapController
 from interrupt import InterruptController
 from clint import CLINT
+from uart import UART
 
 
 class PipelineStage:
@@ -268,17 +269,20 @@ class Pipeline:
         
         # Create hardware components
         self.register_file = RegisterFile()
-        self.memory = Memory()
-        self.exe = EXE()
         
-        # Create trap/interrupt handling components
-        self.csr_bank = CSRBank()
-        self.trap_controller = TrapController(self.csr_bank)
-        self.interrupt_controller = self.trap_controller.interrupt_controller
+        # Create UART peripheral
+        self.uart = UART()
         
         # Create CLINT (Core Local Interruptor) for timer interrupts
         # time_scale=1 means increment mtime every cycle (can be adjusted for realistic timing)
+        self.csr_bank = CSRBank()
+        self.trap_controller = TrapController(self.csr_bank)
+        self.interrupt_controller = self.trap_controller.interrupt_controller
         self.clint = CLINT(self.interrupt_controller, time_scale=1)
+        
+        # Create memory with UART and CLINT integration
+        self.memory = Memory(uart=self.uart, clint=self.clint)
+        self.exe = EXE()
         
         # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
