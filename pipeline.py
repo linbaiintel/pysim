@@ -4,6 +4,9 @@ from register_file import RegisterFile
 from memory import Memory
 from exe import EXE
 from instruction import Instruction
+from csr import CSRBank
+from trap import TrapController
+from interrupt import InterruptController
 
 
 class PipelineStage:
@@ -55,10 +58,11 @@ class DecodeStage(PipelineStage):
 
 
 class ExecuteStage(PipelineStage):
-    def __init__(self, env, exe, register_file):
+    def __init__(self, env, exe, register_file, trap_controller=None):
         super().__init__(env, "Execute", latency=1)
         self.exe = exe
         self.register_file = register_file
+        self.trap_controller = trap_controller
     
     def process(self, instruction):
         """Simulate executing instruction"""
@@ -81,8 +85,40 @@ class ExecuteStage(PipelineStage):
             if result is not None:
                 instruction.result = result
                 
+                # Handle special instruction types
+                if isinstance(result, dict):
+                    # Special result type (ECALL, EBREAK, MRET, CSR)
+                    result_type = result.get('type')
+                    
+                    if result_type == 'ecall' and self.trap_controller:
+                        # Trigger ECALL exception
+                        trap_info = self.trap_controller.ecall(current_pc)
+                        instruction.trap_info = trap_info
+                        print(f"  -> ECALL: Trap to handler at {trap_info['handler_pc']:#x}")
+                    
+                    elif result_type == 'ebreak' and self.trap_controller:
+                        # Trigger EBREAK exception
+                        trap_info = self.trap_controller.ebreak(current_pc)
+                        instruction.trap_info = trap_info
+                        print(f"  -> EBREAK: Trap to handler at {trap_info['handler_pc']:#x}")
+                    
+                    elif result_type == 'mret':
+                        # MRET returns new PC - execute it here with trap_controller
+                        if self.trap_controller and self.trap_controller.csr_bank:
+                            mret_result = EXE.execute_mret(self.trap_controller.csr_bank)
+                            new_pc = mret_result.get('new_pc')
+                            if new_pc is not None:
+                                instruction.jump_target = new_pc
+                                print(f"  -> MRET: Return to {new_pc:#x}")
+                        else:
+                            print(f"  -> MRET: No CSR bank available")
+                    
+                    elif result_type == 'csr':
+                        # CSR instruction - will be handled in WriteBack
+                        print(f"  -> CSR operation: {result['operation']}")
+                
                 # Print appropriate message based on operation type
-                if op == 'LUI':
+                elif op == 'LUI':
                     print(f"  -> LUI result: {result:#010x}")
                 elif op == 'AUIPC':
                     print(f"  -> AUIPC result: PC({current_pc:#010x}) + {instruction.immediate:#010x} = {result:#010x}")
@@ -169,9 +205,10 @@ class MemoryStage(PipelineStage):
 
 
 class WriteBackStage(PipelineStage):
-    def __init__(self, env, register_file):
+    def __init__(self, env, register_file, csr_bank=None):
         super().__init__(env, "WriteBack", latency=1)
         self.register_file = register_file
+        self.csr_bank = csr_bank
     
     def process(self, instruction):
         """Simulate writing back to register"""
@@ -179,8 +216,46 @@ class WriteBackStage(PipelineStage):
         
         # Write result to register file
         if not instruction.is_bubble and instruction.dest_reg and instruction.result is not None:
-            self.register_file.write(instruction.dest_reg, instruction.result)
-            print(f"  -> Wrote {instruction.result} to {instruction.dest_reg}")
+            # Check if result is a special type (dict)
+            if isinstance(instruction.result, dict):
+                result_type = instruction.result.get('type')
+                
+                if result_type == 'csr' and self.csr_bank:
+                    # Handle CSR operations
+                    csr_operation = instruction.result['operation']
+                    csr_addr = instruction.result['csr_addr']
+                    
+                    # Get source value (register or immediate)
+                    if instruction.has_immediate:
+                        src_value = instruction.immediate
+                    else:
+                        src_value = instruction.src_values[0] if instruction.src_values else 0
+                    
+                    # Execute CSR operation
+                    if csr_operation == 'CSRRW':
+                        old_value = EXE.execute_csr_read_write(self.csr_bank, csr_addr, src_value)
+                    elif csr_operation == 'CSRRS':
+                        old_value = EXE.execute_csr_read_set(self.csr_bank, csr_addr, src_value)
+                    elif csr_operation == 'CSRRC':
+                        old_value = EXE.execute_csr_read_clear(self.csr_bank, csr_addr, src_value)
+                    elif csr_operation == 'CSRRWI':
+                        old_value = EXE.execute_csr_read_write(self.csr_bank, csr_addr, src_value)
+                    elif csr_operation == 'CSRRSI':
+                        old_value = EXE.execute_csr_read_set(self.csr_bank, csr_addr, src_value)
+                    elif csr_operation == 'CSRRCI':
+                        old_value = EXE.execute_csr_read_clear(self.csr_bank, csr_addr, src_value)
+                    else:
+                        old_value = 0
+                    
+                    # Write old CSR value to destination register
+                    self.register_file.write(instruction.dest_reg, old_value)
+                    print(f"  -> CSR {csr_operation}: Wrote old value {old_value:#x} to {instruction.dest_reg}")
+                
+                # Other special types (ECALL, EBREAK, MRET) don't write to registers
+            else:
+                # Normal register write
+                self.register_file.write(instruction.dest_reg, instruction.result)
+                print(f"  -> Wrote {instruction.result} to {instruction.dest_reg}")
         
         return instruction
 
@@ -195,12 +270,17 @@ class Pipeline:
         self.memory = Memory()
         self.exe = EXE()
         
+        # Create trap/interrupt handling components
+        self.csr_bank = CSRBank()
+        self.trap_controller = TrapController(self.csr_bank)
+        self.interrupt_controller = self.trap_controller.interrupt_controller
+        
         # Create pipeline stages with hardware components
         self.fetch = FetchStage(env)
         self.decode = DecodeStage(env, self.register_file)
-        self.execute = ExecuteStage(env, self.exe, self.register_file)
+        self.execute = ExecuteStage(env, self.exe, self.register_file, self.trap_controller)
         self.memory_stage = MemoryStage(env, self.memory)
-        self.write_back = WriteBackStage(env, self.register_file)
+        self.write_back = WriteBackStage(env, self.register_file, self.csr_bank)
         
         # Create buffers between stages
         self.fetch_to_decode = simpy.Store(env)
@@ -309,8 +389,15 @@ class Pipeline:
             # After Execute stage, check if we need to trigger flush
             if stage_name == 'execute' and not instruction.is_bubble:
                 op = instruction.operation
+                
+                # Check for trap (ECALL, EBREAK)
+                if hasattr(instruction, 'trap_info') and instruction.trap_info:
+                    trap_pc = instruction.trap_info['handler_pc']
+                    self.trigger_flush(trap_pc)
+                    print(f"[Cycle {self.env.now}] TRAP: Flushing pipeline for trap handler")
+                
                 # Trigger flush for jumps and taken branches
-                if op in ['JAL', 'JALR'] and instruction.jump_target is not None:
+                elif op in ['JAL', 'JALR', 'MRET'] and instruction.jump_target is not None:
                     self.trigger_flush(instruction.jump_target)
                 elif op in ['BEQ', 'BNE', 'BLT', 'BGE', 'BLTU', 'BGEU']:
                     if instruction.result == 1 and instruction.jump_target is not None:
@@ -338,10 +425,37 @@ class Pipeline:
     def instruction_feeder(self, instructions):
         """Feed instructions into the pipeline"""
         instruction_queue = [Instruction(instr) for instr in instructions]
+        pc = 0  # Track current PC
         
-        for instruction in instruction_queue:
+        for idx, instruction in enumerate(instruction_queue):
+            # Check for pending interrupts before fetching
+            next_pc = (pc + 4) & 0xFFFFFFFF
+            interrupt_info = self.trap_controller.check_pending_interrupts(next_pc)
+            
+            if interrupt_info:
+                # Interrupt delivered - redirect to handler
+                handler_pc = interrupt_info['handler_pc']
+                cause = interrupt_info['cause']
+                print(f"\n[Cycle {self.env.now}] INTERRUPT DELIVERED: cause={cause:#x}, handler={handler_pc:#x}")
+                print(f"[Cycle {self.env.now}] FLUSH: Redirecting to interrupt handler")
+                
+                # Update PC to handler
+                pc = handler_pc
+                
+                # Flush pipeline by inserting bubbles
+                for _ in range(3):  # Flush fetch, decode, execute stages
+                    bubble = Instruction("BUBBLE")
+                    yield self.fetch_to_decode.put(bubble)
+                    self.bubble_count += 1
+                
+                # Note: In a real implementation, we'd need to fetch from handler_pc
+                # For now, continue with next instruction in queue
+                yield self.env.timeout(1)
+                continue
+            
             print(f"\n[Cycle {self.env.now}] Fetching instruction: {instruction}")
             yield self.fetch_to_decode.put(instruction)
+            pc = next_pc
             yield self.env.timeout(1)
 
     def run(self, instructions):

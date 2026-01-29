@@ -50,7 +50,35 @@ trap_controller = TrapController(csr_bank)
 | 11 (0x8000000B) | External interrupt | External device |
 
 **Note**: Interrupt codes have MSB set (bit 31) to distinguish from exceptions.
+## Pipeline Integration
 
+The trap mechanism is fully integrated into the pipeline simulator for realistic interrupt handling:
+
+### Interrupt Checking
+Before each instruction fetch, the pipeline checks for pending interrupts:
+```python
+interrupt_info = self.trap_controller.check_pending_interrupts(next_pc)
+if interrupt_info:
+    # Interrupt delivered - flush pipeline and jump to handler
+    handler_pc = interrupt_info['handler_pc']
+    cause = interrupt_info['cause']
+```
+
+### Pipeline Modifications
+1. **ExecuteStage**: Handles ECALL, EBREAK, and MRET instructions
+2. **WriteBackStage**: Executes CSR operations
+3. **Instruction Feeder**: Checks for interrupts before each fetch
+4. **Flush Mechanism**: Cancels in-flight instructions on trap entry
+
+### Trap Entry in Pipeline
+When an interrupt is delivered:
+1. Save current PC to `mepc`
+2. Write cause to `mcause` (MSB set for interrupts)
+3. Clear MIE bit in `mstatus`
+4. Flush pipeline (insert 3 bubbles)
+5. Redirect fetch to handler address from `mtvec`
+
+See [PIPELINE_INTERRUPTS.md](../PIPELINE_INTERRUPTS.md) for complete details.
 ## Trap Entry Mechanism
 
 When an exception or interrupt occurs, the following sequence happens automatically:

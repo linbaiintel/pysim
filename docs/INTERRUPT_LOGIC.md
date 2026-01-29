@@ -45,6 +45,44 @@ An interrupt is deliverable if ALL of:
 2. Software
 3. Timer (lowest)
 
+## Pipeline Integration
+
+The InterruptController is integrated with the pipeline through the TrapController:
+
+```python
+# In pipeline.py
+class Pipeline:
+    def __init__(self):
+        self.csr_bank = CSRBank()
+        self.trap_controller = TrapController(self.csr_bank)
+        self.interrupt_controller = self.trap_controller.interrupt_controller
+```
+
+### Interrupt Delivery Flow
+1. **Before Fetch**: Pipeline calls `trap_controller.check_pending_interrupts()`
+2. **Priority Resolution**: InterruptController returns highest priority interrupt
+3. **Deliverability Check**: Verifies global enable (MIE) and individual enable (mie bit)
+4. **Trap Entry**: TrapController delivers interrupt and updates CSRs
+5. **Pipeline Flush**: Cancels in-flight instructions
+6. **Handler Execution**: Pipeline fetches from handler address
+
+### Usage in Pipeline
+```python
+# Enable and trigger interrupt
+pipeline.interrupt_controller.enable_interrupt(pipeline.interrupt_controller.INT_TIMER)
+pipeline.interrupt_controller.set_pending(pipeline.interrupt_controller.INT_TIMER)
+
+# Enable global interrupts
+mstatus = pipeline.csr_bank.read(0x300)
+mstatus |= (1 << 3)  # Set MIE
+pipeline.csr_bank.write(0x300, mstatus)
+
+# Run - interrupt will be delivered before first instruction
+pipeline.run(instructions)
+```
+
+See [PIPELINE_INTERRUPTS.md](../PIPELINE_INTERRUPTS.md) for complete integration details.
+
 ## Basic Operations
 
 ### Setting Interrupts Pending

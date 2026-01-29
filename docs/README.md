@@ -18,6 +18,9 @@ This directory contains comprehensive documentation for the RISC-V 5-Stage Pipel
 ### 🔧 Implementation Details
 - **[PIPELINE_FLUSH.md](PIPELINE_FLUSH.md)** - Pipeline flush mechanism for control flow
 - **[JAL_JALR_IMPLEMENTATION.md](JAL_JALR_IMPLEMENTATION.md)** - Jump instruction implementation
+- **[TRAP_MECHANISM.md](TRAP_MECHANISM.md)** - Trap and interrupt handling
+- **[INTERRUPT_LOGIC.md](INTERRUPT_LOGIC.md)** - Interrupt enable/pending logic
+- **[PIPELINE_INTERRUPTS.md](../PIPELINE_INTERRUPTS.md)** - Pipeline interrupt integration
 
 ### 🧪 Testing
 - **[RISCV_TESTS_GUIDE.md](RISCV_TESTS_GUIDE.md)** - Guide for official RISC-V test suite

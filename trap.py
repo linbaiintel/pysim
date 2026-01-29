@@ -185,44 +185,62 @@ class TrapController:
         Returns:
             Trap info dictionary if interrupt delivered, None otherwise
         """
-        if not self.pending_interrupts:
+        # Use the InterruptController to get the highest priority interrupt
+        interrupt_code = self.interrupt_controller.get_highest_priority_interrupt()
+        
+        if interrupt_code is None:
+            # Also check legacy pending_interrupts for compatibility
+            if not self.pending_interrupts:
+                return None
+            
+            # Check if interrupts are globally enabled
+            mstatus = self.csr_bank.read(0x300)
+            mie_enabled = (mstatus >> 3) & 0x1
+            
+            if not mie_enabled:
+                return None
+            
+            # Try to deliver highest priority pending interrupt (legacy)
+            priority_order = [
+                self.INTERRUPT_EXTERNAL,
+                self.INTERRUPT_SOFTWARE,
+                self.INTERRUPT_TIMER
+            ]
+            
+            for interrupt_code in priority_order:
+                if interrupt_code in self.pending_interrupts:
+                    # Try to deliver this interrupt
+                    mie = self.csr_bank.read(0x304)
+                    interrupt_bit = interrupt_code & 0x7FFFFFFF
+                    
+                    enabled = False
+                    if interrupt_bit == 3:  # Software
+                        enabled = (mie & (1 << 3)) != 0
+                    elif interrupt_bit == 7:  # Timer
+                        enabled = (mie & (1 << 7)) != 0
+                    elif interrupt_bit == 11:  # External
+                        enabled = (mie & (1 << 11)) != 0
+                    
+                    if enabled:
+                        # Deliver this interrupt
+                        self.pending_interrupts.remove(interrupt_code)
+                        return self._deliver_interrupt(interrupt_code, next_pc)
+            
             return None
-        
-        # Check if interrupts are globally enabled
-        mstatus = self.csr_bank.read(0x300)
-        mie_enabled = (mstatus >> 3) & 0x1
-        
-        if not mie_enabled:
-            return None
-        
-        # Try to deliver highest priority pending interrupt
-        # Priority: External > Software > Timer (typical RISC-V priority)
-        priority_order = [
-            self.INTERRUPT_EXTERNAL,
-            self.INTERRUPT_SOFTWARE,
-            self.INTERRUPT_TIMER
-        ]
-        
-        for interrupt_code in priority_order:
-            if interrupt_code in self.pending_interrupts:
-                # Try to deliver this interrupt
-                mie = self.csr_bank.read(0x304)
-                interrupt_bit = interrupt_code & 0x7FFFFFFF
-                
-                enabled = False
-                if interrupt_bit == 3:  # Software
-                    enabled = (mie & (1 << 3)) != 0
-                elif interrupt_bit == 7:  # Timer
-                    enabled = (mie & (1 << 7)) != 0
-                elif interrupt_bit == 11:  # External
-                    enabled = (mie & (1 << 11)) != 0
-                
-                if enabled:
-                    # Deliver this interrupt
-                    self.pending_interrupts.remove(interrupt_code)
-                    return self._deliver_interrupt(interrupt_code, next_pc)
-        
-        return None
+        else:
+            # New path: InterruptController has a pending, enabled interrupt
+            # interrupt_code here is just the bit position (3, 7, or 11)
+            # Convert to full interrupt code with MSB set
+            interrupt_bit = interrupt_code
+            full_interrupt_code = 0x80000000 | interrupt_bit
+            
+            # Clear it from the controller and deliver
+            self.interrupt_controller.clear_pending(interrupt_bit)
+            
+            # Also clear from legacy pending_interrupts for compatibility
+            self.pending_interrupts.discard(full_interrupt_code)
+            
+            return self._deliver_interrupt(full_interrupt_code, next_pc)
     
     def _deliver_interrupt(self, interrupt_code, next_pc):
         """Internal method to deliver an interrupt
