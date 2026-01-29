@@ -40,10 +40,14 @@ SECTIONS
     .data : ALIGN(4)
     {
         _data_start = .;
+        *(.sdata .sdata.*)
         *(.data .data.*)
         *(.gnu.linkonce.d.*)
         _data_end = .;
     } > RAM
+    
+    /* Global pointer for RV32I gp register */
+    __global_pointer$ = MIN(_data_start + 0x800, _data_end);
 
     /* BSS section (uninitialized) */
     .bss : ALIGN(4)

@@ -1,3 +1,8 @@
 pysim-venv/**
 **/__pycache__/**
 **/__init__.py
+**/*.bin
+**/*.hex
+**/*.lst
+**/*.o
+**/*.elf

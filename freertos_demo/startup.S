@@ -12,6 +12,12 @@ _start:
     csrw mie, zero
     csrw mstatus, zero
     
+    /* Set up global pointer */
+    .option push
+    .option norelax
+    la gp, __global_pointer$
+    .option pop
+    
     /* Set up stack pointer */
     la sp, _stack_start
     
